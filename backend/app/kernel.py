@@ -5,12 +5,12 @@ from semantic_kernel.connectors.ai.open_ai.services.open_ai_chat_completion impo
 from semantic_kernel.agents import AgentGroupChat, ChatCompletionAgent
 
 import os
-from config import __PROMPT_DIR__
+from app.core.config import settings
 
 
 def load_prompt(agent_name):
     """Loads the prompt for a given agent from a file."""
-    file_path = os.path.join(__PROMPT_DIR__, f"{agent_name}.prompty")
+    file_path = os.path.join(settings.PROMPT_DIR, f"{agent_name}.prompty")
     print(f"Loading prompt for {agent_name} from {file_path}")
     try:
         with open(file_path, "r", encoding="utf-8") as file:

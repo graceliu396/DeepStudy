@@ -3,12 +3,12 @@ from semantic_kernel.connectors.ai.function_choice_behavior import FunctionChoic
 
 from semantic_kernel.contents import ChatHistory
 from fastapi import APIRouter, UploadFile, File
-from models.lesson_plan import Plan
+from schemas.lesson_plan import Plan
 from tools.azure_document_intelligence import analyze_pdf
 from kernel import kernel, load_prompt
 
 
-router = APIRouter()
+router = APIRouter(tags=["parse"])
 
 
 @router.post("/upload", response_model=Plan)
