@@ -4,9 +4,10 @@ from azure.core.credentials import AzureKeyCredential
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.ai.documentintelligence.models import AnalyzeDocumentRequest
 import numpy as np
+from app.core.config import settings
 
-endpoint = "https://edupdfparser.cognitiveservices.azure.com/"
-key = "2cJ9tsf0Qj2mEt2l3CtkPYNYk1ma8xfZUgwJjiMnIkeSCeEXADspJQQJ99BDACYeBjFXJ3w3AAALACOGkr3h"
+endpoint = settings.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT
+key = settings.AZURE_DOCUMENT_INTELLIGENCE_KEY
 
 
 document_intelligence_client = DocumentIntelligenceClient(

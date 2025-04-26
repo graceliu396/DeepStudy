@@ -11,7 +11,9 @@ from pydantic import (
     HttpUrl,
     computed_field,
     model_validator,
+    PostgresDsn,
 )
+from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Self
 from sqlalchemy import create_engine
@@ -54,22 +56,49 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "simclass"
     SENTRY_DSN: HttpUrl | None = None
-    AZURE_SQL_SERVER_NAME: str = "mysqlserver0412.database.windows.net"
-    AZURE_SQL_DATABASE_NAME: str = "user_db"
-    AZURE_SQL_USER_NAME: str = "simclass_admin"
-    AZURE_SQL_PASSWORD: str = "Hackathon123"
-    DRIVER:str ="{ODBC Driver 18 for SQL Server}"
+    # AZURE_SQL_SERVER_NAME: str = "mysqlserver0412.database.windows.net"
+    # AZURE_SQL_DATABASE_NAME: str = "user_db"
+    # AZURE_SQL_USER_NAME: str = "simclass_admin"
+    # AZURE_SQL_PASSWORD: str = "Hackathon123"
+    # DRIVER:str ="{ODBC Driver 18 for SQL Server}"
 
-    connection_string:str = f"DRIVER={DRIVER}; \
-        SERVER=tcp:{AZURE_SQL_SERVER_NAME},1433; \
-        DATABASE={AZURE_SQL_DATABASE_NAME}; \
-        UID={AZURE_SQL_USER_NAME}; \
-        PWD={AZURE_SQL_PASSWORD}; \
-        Encrypt=yes; \
-        TrustServerCertificate=no; \
-        Connection Timeout=30"
-    connection_string:str = urllib.parse.quote_plus(connection_string)
-    SQLALCHEMY_DATABASE_URI:str = 'mssql+pyodbc:///?odbc_connect=' + connection_string
+    # connection_string:str = f"DRIVER={DRIVER}; \
+    #     SERVER=tcp:{AZURE_SQL_SERVER_NAME},1433; \
+    #     DATABASE={AZURE_SQL_DATABASE_NAME}; \
+    #     UID={AZURE_SQL_USER_NAME}; \
+    #     PWD={AZURE_SQL_PASSWORD}; \
+    #     Encrypt=yes; \
+    #     TrustServerCertificate=no; \
+    #     Connection Timeout=30"
+    # connection_string:str = urllib.parse.quote_plus(connection_string)
+    # SQLALCHEMY_DATABASE_URI:str = 'mssql+pyodbc:///?odbc_connect=' + connection_string
+
+    AZURE_DOCUMENT_INTELLIGENCE_KEY: str = "2cJ9tsf0Qj2mEt2l3CtkPYNYk1ma8xfZUgwJjiMnIkeSCeEXADspJQQJ99BDACYeBjFXJ3w3AAALACOGkr3h"
+    AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT: str = "https://edupdfparser.cognitiveservices.azure.com/"
+
+    #AZURE_COSMOS_DB_KEY: str = "bkjswKNJNsuhp73Jwf3wUGXFjO2CudjNJRWlfd6E2t2rg4NuRIrdUcIM7xSZ0rREruYbc14EIfKiACDbCSz4rQ=="
+    AZURE_COSMOS_DB_ENDPOINT: str = "https://edudb.documents.azure.com:443/"
+    AZURE_COSMOS_DB_KEY: str = "bkjswKNJNsuhp73Jwf3wUGXFjO2CudjNJRWlfd6E2t2rg4NuRIrdUcIM7xSZ0rREruYbc14EIfKiACDbCSz4rQ=="
+    AZURE_COSMOS_DB_CONNECTION_STRING: str = f"AccountEndpoint={AZURE_COSMOS_DB_ENDPOINT};AccountKey={AZURE_COSMOS_DB_KEY};"
+    AZURE_COSMOS_DB_DATABASE_NAME: str = "cosmosDB"
+
+    POSTGRES_SERVER: str="localhost"
+    POSTGRES_PORT: int = 5432
+    POSTGRES_USER: str="postgres"
+    POSTGRES_PASSWORD: str = "Hackathon123"
+    POSTGRES_DB: str = "postgres"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:
+        return MultiHostUrl.build(
+            scheme="postgresql+psycopg",
+            username=self.POSTGRES_USER,
+            password=self.POSTGRES_PASSWORD,
+            host=self.POSTGRES_SERVER,
+            port=self.POSTGRES_PORT,
+            path=self.POSTGRES_DB,
+        )
 
     SMTP_TLS: bool = True
     SMTP_SSL: bool = False
@@ -111,7 +140,7 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _enforce_non_default_secrets(self) -> Self:
         self._check_default_secret("SECRET_KEY", self.SECRET_KEY)
-        self._check_default_secret("AZURE_SQL_PASSWORD", self.AZURE_SQL_PASSWORD)
+        self._check_default_secret("POSTGRES_PASSWORD", self.POSTGRES_PASSWORD)
         self._check_default_secret(
             "FIRST_SUPERUSER_PASSWORD", self.FIRST_SUPERUSER_PASSWORD
         )

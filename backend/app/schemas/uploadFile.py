@@ -22,7 +22,18 @@ class MiniLesson(BaseModel):
     key_concepts: List[str] = Field(..., description="Key learning points students should master for this mini-lesson")
 
 class Plan(BaseModel):
-    topic_id: str = Field(..., description="Unique identifier following pattern: Subject-Grade-Id (e.g., MATH-3-1)")
+    subject: str = Field(..., description="Subject of the uploaded file (e.g., Math, Science, Art, etc.)")
     topic: str = Field(..., description="Broad mathematical domain (e.g., Operations & Algebraic Thinking)")
     grade: Grade = Field(..., description="The target students' grade level (K, 1-8, or H)")
     lesson_sequence: List[MiniLesson] = Field(..., description="Ordered series of mini-lessons")
+
+
+class FileUpload(BaseModel):
+    id: str = Field(..., description="Unique identifier for the file")
+    user_id: str = Field(..., description="Unique identifier for the user")
+    subject: str = Field(..., description="Subject of the uploaded file")
+    file_topic: str = Field(..., description="Topic of the uploaded file")
+    grade: Grade = Field(..., description="The target students' grade level (K, 1-8, or H)")
+    file_content: str = Field(..., description="Content of the uploaded file")
+    lesson_plan: Plan = Field(..., description="Lesson plan for the uploaded file")
+    

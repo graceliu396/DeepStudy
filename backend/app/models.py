@@ -1,12 +1,30 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Literal
 from sqlmodel import Field, Relationship, SQLModel, Column, UniqueConstraint, Index
 from sqlalchemy import DateTime, func
+import sqlalchemy as sa
+
+# 定义允许的年级值（数据库存储实际值）
+GradeLevel = Literal["K", "1", "2", "3", "4", "5", "6", "7", "8", "H"]
+
+# 数据库检查约束（兼容所有数据库）
+grade_check = sa.CheckConstraint(
+    "grade IN ('K', '1', '2', '3', '4', '5', '6', '7', '8', 'H')",
+    name="valid_grade_check"
+)
+
 
 # 用户基类
 class UserBase(SQLModel):
     nickname: str = Field(max_length=50, nullable=False)
-    avatar_url: Optional[str] = Field(max_length=512, default=None)
+    grade: GradeLevel = Field(
+        sa_column=Column(
+            sa.VARCHAR(2),  # 数据库存储为字符串
+            nullable=False,
+            info={"check_constraint": grade_check}
+        )
+    )
+    is_admin: bool = Field(default=False)
 
 # 用户创建（需要认证信息）
 class UserCreate(UserBase):
@@ -17,7 +35,13 @@ class UserCreate(UserBase):
 # 用户更新模型
 class UserUpdate(SQLModel):
     nickname: Optional[str] = Field(max_length=50)
-    avatar_url: Optional[str] = Field(max_length=512)
+    grade: GradeLevel = Field(
+        sa_column=Column(
+            sa.VARCHAR(2),  # 数据库存储为字符串
+            nullable=False,
+            info={"check_constraint": grade_check}
+        )
+    )
 
 # 数据库用户模型
 class Users(UserBase, table=True):
@@ -55,6 +79,7 @@ class Auth(AuthBase, table=True):
 
 class UserPublic(UserBase):
     id: int
+    grade: GradeLevel
     created_at: datetime
     updated_at: datetime
 

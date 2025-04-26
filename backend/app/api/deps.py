@@ -11,7 +11,7 @@ from sqlmodel import Session
 from app.core import security
 from app.core.config import settings
 from app.core.db import engine
-from app.models import TokenPayload, Users
+from app.models import TokenPayload, Users, Auth
 
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/login/email"
@@ -38,10 +38,10 @@ def get_current_user(session: SessionDep, token: TokenDep) -> Users:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Could not validate credentials",
         )
-    user = session.get(Users, token_data.sub)
+    user = session.get(Auth, token_data.sub)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    if not user.is_active:
+    if not user.verified:
         raise HTTPException(status_code=400, detail="Inactive user")
     return user
 

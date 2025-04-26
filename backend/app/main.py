@@ -10,6 +10,15 @@ from starlette.middleware.cors import CORSMiddleware
 from app.api.main import api_router
 from app.core.config import settings
 
+import logging
+
+from sqlmodel import Session
+
+from app.core.db import engine, init_db
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 def custom_generate_unique_id(route: APIRoute) -> str:
     return f"{route.tags[0]}-{route.name}"
@@ -33,5 +42,20 @@ if settings.all_cors_origins:
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
-if __name__ == '__main__':
+
+def init() -> None:
+    with Session(engine) as session:
+        init_db(session)
+
+
+def main() -> None:
+    logger.info("Creating initial data")
+    init()
+    logger.info("Initial data created")
     uvicorn.run('main:app', reload=True)
+
+
+if __name__ == "__main__":
+    main()
+    
+
