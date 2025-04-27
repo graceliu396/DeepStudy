@@ -36,4 +36,5 @@ class FileUpload(BaseModel):
     grade: Grade = Field(..., description="The target students' grade level (K, 1-8, or H)")
     file_content: str = Field(..., description="Content of the uploaded file")
     lesson_plan: Plan = Field(..., description="Lesson plan for the uploaded file")
+    total_lessons: int = Field(..., description="Total number of mini-lessons")
     

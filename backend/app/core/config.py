@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     FRONTEND_HOST: str = "http://localhost:5173"
     # ENVIRONMENT: Literal["local", "staging", "production"] = "local"
 
-    PROMPT_DIR:str = os.path.join(str(Path(__file__).parent), "prompts")
+    PROMPT_DIR:str = os.path.join(str(Path(__file__).parent.parent), "prompts")
 
     BACKEND_CORS_ORIGINS: Annotated[
         list[AnyUrl] | str, BeforeValidator(parse_cors)
@@ -81,6 +81,9 @@ class Settings(BaseSettings):
     AZURE_COSMOS_DB_KEY: str = "bkjswKNJNsuhp73Jwf3wUGXFjO2CudjNJRWlfd6E2t2rg4NuRIrdUcIM7xSZ0rREruYbc14EIfKiACDbCSz4rQ=="
     AZURE_COSMOS_DB_CONNECTION_STRING: str = f"AccountEndpoint={AZURE_COSMOS_DB_ENDPOINT};AccountKey={AZURE_COSMOS_DB_KEY};"
     AZURE_COSMOS_DB_DATABASE_NAME: str = "cosmosDB"
+
+    AZURE_REDIS_HOST: str = "cacheSimclass.redis.cache.windows.net"
+    AZURE_REDIS_KEY: str = "EbM9NoFTI3Z3BtU5gdYTlHOjX7hQNTs37AzCaAsrxvo="
 
     POSTGRES_SERVER: str="localhost"
     POSTGRES_PORT: int = 5432

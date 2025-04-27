@@ -1,7 +1,6 @@
 from typing import List
 from pydantic import BaseModel, Field
 from enum import Enum
-from typing import JSON
 
 class Step(str, Enum):
     TEACHING = "teaching"
@@ -12,7 +11,7 @@ class Step(str, Enum):
 
 class ChatHistory(BaseModel):
     step: Step = Field(..., description="Step of the chat history")
-    history: List[str] = Field(..., description="Chat history")
+    history: List[dict] = Field(..., description="Chat history")
 
 class ChatHistorys(BaseModel):
     id: str = Field(..., description="Unique identifier for the chat history")

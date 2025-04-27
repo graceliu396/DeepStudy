@@ -7,12 +7,13 @@ from schemas.uploadFile import *
 from tools.azure_document_intelligence import analyze_pdf
 from app.core.kernel import kernel, load_prompt
 from app.api.deps import CurrentUser
+from app.tools.azure_redis_for_cache import lesson_cache
 
 
 router = APIRouter(tags=["parse"])
 
 
-@router.post("/material/upload", response_model=Plan)
+@router.post("/material/upload", response_model=FileUpload)
 async def parse_file(file: UploadFile = File(...)):
     # TODO 将上传的文件保存到数据库中
 
@@ -43,7 +44,8 @@ async def parse_file(file: UploadFile = File(...)):
 
     reasoned_result = Plan.model_validate_json(response.value[0].content)
     print(f"Mosscap:> {reasoned_result}")
-
+    lesson_plan_json = reasoned_result.model_dump()
+    total_lessons=len(lesson_plan_json['lesson_sequence'])
 
     # 将文件内容保存到数据库中
     file_record = FileUpload(
@@ -53,11 +55,14 @@ async def parse_file(file: UploadFile = File(...)):
         file_topic=reasoned_result.topic,
         grade=reasoned_result.grade,
         file_content=full_text,
-        lesson_plan=reasoned_result
+        lesson_plan=reasoned_result,
+        total_lessons=total_lessons
     )
-    create_file_record(file_record.model_dump())
 
-    return reasoned_result
+    lesson_cache.create_file_record_cache(file_record.model_dump())
+    lesson_cache.migrate_file_data(file_record.id)
+
+    return file_record.model_dump()
 
 # 查看用户上传的所有材料
 #TODO @router.post("/materials")

@@ -1,0 +1,41 @@
+{
+  "Title": "Understanding Multiplication as Equal Groups",
+  "Objectives": [
+    "Interpret products as total objects in equal groups",
+    "Create real-world contexts for multiplication expressions",
+    "Use arrays/drawings to represent multiplication scenarios"
+  ],
+  "Key Concepts": [
+    "Interpret products as total objects in equal groups (e.g., 5 × 7 means 5 groups of 7)",
+    "Create real-world contexts for multiplication expressions",
+    "Use arrays/drawings to represent multiplication scenarios"
+  ],
+  "Teaching Steps": [
+    {
+      "Step": 1,
+      "Step Name": "Warm-up",
+      "Content": "Let’s start with a fun activity! I’ll show you a picture of some groups of objects—like 3 groups of 4 apples each. Can you count how many apples there are in total? (Show image.) Yes, it’s 12! Today, we’ll learn how multiplication helps us quickly find totals like this."
+    },
+    {
+      "Step": 2,
+      "Step Name": "Main Content - Equal Groups",
+      "Content": "Multiplication is like adding the same number over and over. For example, 4 × 3 means 4 groups of 3. Let’s draw it: (Draw on board: OOO OOO OOO OOO). How many circles total? (12!) That’s right—4 groups of 3 is 12. Now, you try: What’s 2 × 5? Draw it on your paper!"
+    },
+    {
+      "Step": 3,
+      "Step Name": "Real-World Connections",
+      "Content": "Where do we see equal groups in real life? (Pause for ideas.) Like 6 packs of juice with 2 bottles each—how many bottles? (6 × 2 = 12)! Now, pair up and invent your own multiplication story. For example, 'If I have 5 bags with 8 marbles each…'"
+    },
+    {
+      "Step": 4,
+      "Step Name": "Arrays and Drawings",
+      "Content": "Let’s represent 3 × 4 as an array of dots: 3 rows of 4 dots each. (Demonstrate on grid paper.) This shows rows and columns, just like seats in our classroom! Now, you make an array for 5 × 2. How many dots? (10!)"
+    },
+    {
+      "Step": 5,
+      "Step Name": "Summary",
+      "Content": "Today, we learned that multiplication is about equal groups. 4 × 3 isn’t just 12—it’s 4 groups of 3! We drew arrays, made up stories, and even saw it in real life. Tomorrow, we’ll practice even more!"
+    }
+  ],
+  "Group Discussion Questions": "Your teacher has 7 baskets. Each basket holds 6 oranges. How many oranges are there in total? Draw an array or equal groups to show your work!"
+}
