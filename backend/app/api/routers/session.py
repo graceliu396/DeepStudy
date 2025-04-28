@@ -17,8 +17,6 @@ from app.agent.stage2_discussion import generate_discussion_history
 from app.schemas.chatHistory import Step
 from app.agent.stage4 import analyze_weaknesses, retrieve_questions, generate_report
 from backend.app.agent.stage3_summary import learning_analysis  
-from backend.app.cache import lesson_cache  
-from backend.app.schema import Step  
 
 router = APIRouter(tags=["study"])
 
