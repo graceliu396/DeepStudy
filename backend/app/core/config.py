@@ -76,7 +76,6 @@ class Settings(BaseSettings):
     AZURE_DOCUMENT_INTELLIGENCE_KEY: str = "2cJ9tsf0Qj2mEt2l3CtkPYNYk1ma8xfZUgwJjiMnIkeSCeEXADspJQQJ99BDACYeBjFXJ3w3AAALACOGkr3h"
     AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT: str = "https://edupdfparser.cognitiveservices.azure.com/"
 
-    #AZURE_COSMOS_DB_KEY: str = "bkjswKNJNsuhp73Jwf3wUGXFjO2CudjNJRWlfd6E2t2rg4NuRIrdUcIM7xSZ0rREruYbc14EIfKiACDbCSz4rQ=="
     AZURE_COSMOS_DB_ENDPOINT: str = "https://edudb.documents.azure.com:443/"
     AZURE_COSMOS_DB_KEY: str = "bkjswKNJNsuhp73Jwf3wUGXFjO2CudjNJRWlfd6E2t2rg4NuRIrdUcIM7xSZ0rREruYbc14EIfKiACDbCSz4rQ=="
     AZURE_COSMOS_DB_CONNECTION_STRING: str = f"AccountEndpoint={AZURE_COSMOS_DB_ENDPOINT};AccountKey={AZURE_COSMOS_DB_KEY};"
@@ -84,6 +83,14 @@ class Settings(BaseSettings):
 
     AZURE_REDIS_HOST: str = "cacheSimclass.redis.cache.windows.net"
     AZURE_REDIS_KEY: str = "EbM9NoFTI3Z3BtU5gdYTlHOjX7hQNTs37AzCaAsrxvo="
+
+    GLOBAL_LLM_SERVICE: str ="AzureOpenAI"
+    AZURE_OPENAI_DEPLOYMENT_NAME:str ="o3-mini"
+    AZURE_OPENAI_ENDPOINT:str ="https://qliu4-m9hdk661-eastus2.openai.azure.com/"
+    AZURE_OPENAI_API_KEY:str ="71wikMsLTuyyHKQRlvXKI2iPpiEAXTIQrX25txbCmZ0In8niQ7eNJQQJ99BDACHYHv6XJ3w3AAAAACOG7etS"
+    AZURE_OPENAI_CHAT_DEPLOYMENT_NAME:str ="o3-mini"
+
+
 
     POSTGRES_SERVER: str="localhost"
     POSTGRES_PORT: int = 5432
