@@ -16,7 +16,9 @@ from app.agent.stage0_preparing import generate_teaching_script
 from app.agent.stage2_discussion import generate_discussion_history
 from app.schemas.chatHistory import Step
 from app.agent.stage4 import analyze_weaknesses, retrieve_questions, generate_report
-
+from backend.app.agent.stage3_summary import learning_analysis  
+from backend.app.cache import lesson_cache  
+from backend.app.schema import Step  
 
 router = APIRouter(tags=["study"])
 
@@ -76,70 +78,44 @@ async def start_discussion(session_id: str, lesson_index: int):
 
 
 # 开始进行总结和练习
+
+from fastapi import APIRouter
+
+router = APIRouter()
+
 @router.post("/session/{session_id}/lesson/{lesson_index}/summary")
 async def start_summary(session_id: str, lesson_index: int):
     """
-    Stage4: 根据本节课的对话历史
-      1) 分析学生薄弱点
-      2) 基于薄弱点+教学内容 RAG 智能配题（5道填空）
-      3) 判题 & 生成结构化总结报告
+    开始进行总结和练习
     """
-    # 1. 读取课堂状态
-    state = lesson_cache.get_lesson_state(session_id, lesson_index)
-    if not state:
-        raise HTTPException(status_code=404, detail="Lesson state not found")
+    # TODO: 总结和练习
 
-    teaching_script = state.get("script")
-    chat_history = state.get("chat_history", [])
-    if teaching_script is None or not chat_history:
-        raise HTTPException(status_code=400, detail="Missing teaching script or chat history")
+    # 获取聊天记录和教学脚本
+    chat_history = lesson_cache.get_chat_history(session_id)
+    teaching_script = lesson_cache.get_teaching_script(session_id)
 
-    # 2. 分析薄弱点
-    #    chat_history 期望是 List[{"Speaker": "...", "Text": "..."}]
-    weaknesses = analyze_weaknesses(chat_history)
+    # 1. 分析学生弱点
+    weaknesses = await learning_analysis.analyze_weaknesses(chat_history)
 
-    # 3. RAG 配题：5道填空题
-    exercises = retrieve_questions(
-        topic=teaching_script.get("Topic"),
-        weaknesses=weaknesses,
-        num_questions=5,
-        question_type="fill_blank"
-    )
+    # 2. 根据弱点生成练习题
+    exercises = await learning_analysis.retrieve_questions(weaknesses, teaching_script)
 
-    # 4. 判题 + 生成总结报告
-    summary_report = generate_report(
-        topic=teaching_script.get("Topic"),
-        summary=teaching_script.get("Summary"),
-        weaknesses=weaknesses,
-        exercises=exercises
-    )
+    # 3. 生成总结报告
+    summary = await learning_analysis.generate_report(teaching_script, chat_history, weaknesses)
 
-    # 5. 更新缓存
+    # 更新缓存
     lesson_cache.update_lesson_exercises(session_id, exercises)
-    lesson_cache.update_lesson_summary(session_id, summary_report)
-    lesson_cache.save_chat_history(session_id, summary_report, Step.FINAL_SUMMARY)
-    lesson_cache.save_chat_history(session_id, exercises, Step.PRACTICE)
+    lesson_cache.update_lesson_summary(session_id, summary)
 
-    # 6. 持久化到 Cosmos DB
-    record_id = uuid.uuid4().hex
-    create_file_record(record_id, {
-        "session_id": session_id,
-        "lesson_index": lesson_index,
-        "weaknesses": weaknesses,
-        "exercises": exercises,
-        "summary": summary_report
-    })
+    # 保存聊天记录
+    message_list_summary = [{"role": "system", "content": json.dumps(summary, ensure_ascii=False)}]
+    lesson_cache.save_chat_history(session_id, message_list_summary, Step.FINAL_SUMMARY)
 
-    # 7. 返回结果
-    return {
-        "message": "Summary and exercises generated successfully",
-        "session_id": session_id,
-        "lesson_index": lesson_index,
-        "record_id": record_id,
-        "weaknesses": weaknesses,
-        "exercises": exercises,
-        "summary_report": summary_report
-    }
+    message_list_exercises = [{"role": "system", "content": json.dumps(exercises, ensure_ascii=False)}]
+    lesson_cache.save_chat_history(session_id, message_list_exercises, Step.PRACTICE)
+
+    return {"message": "总结和练习已生成并保存"}
+
 
 
 # 用户点击退出 OR 全部课程上完退出
