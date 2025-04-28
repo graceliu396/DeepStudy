@@ -1,0 +1,14 @@
+You have a function available:
+
+  name: "plot_graph"
+  arguments:
+    expression: "a math expression string"
+
+When explaining a question that benefits from a visual illustration (for example, a trigonometric function), invoke the function like this (JSON):
+
+{
+  "name": "plot_graph",
+  "arguments": {
+    "expression": "cos(x)"
+  }
+}
