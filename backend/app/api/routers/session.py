@@ -77,12 +77,68 @@ async def start_discussion(session_id: str, lesson_index: int):
 # 开始进行总结和练习
 @router.post("/session/{session_id}/lesson/{lesson_index}/summary")
 async def start_summary(session_id: str, lesson_index: int):
-    # TODO: 总结和练习
-    # lesson_cache.update_lesson_exercises(session_id, exercises)
-    # lesson_cache.update_lesson_summary(session_id, summary)
-    # lesson_cache.save_chat_history(session_id, message_list, Step.FINAL_SUMMARY)
-    # lesson_cache.save_chat_history(session_id, message_list, Step.PRACTICE)
-    return
+    """
+    Stage4: 根据本节课的对话历史
+      1) 分析学生薄弱点
+      2) 基于薄弱点+教学内容 RAG 智能配题（5道填空）
+      3) 判题 & 生成结构化总结报告
+    """
+    # 1. 读取课堂状态
+    state = lesson_cache.get_lesson_state(session_id, lesson_index)
+    if not state:
+        raise HTTPException(status_code=404, detail="Lesson state not found")
+
+    teaching_script = state.get("script")
+    chat_history = state.get("chat_history", [])
+    if teaching_script is None or not chat_history:
+        raise HTTPException(status_code=400, detail="Missing teaching script or chat history")
+
+    # 2. 分析薄弱点
+    #    chat_history 期望是 List[{"Speaker": "...", "Text": "..."}]
+    weaknesses = analyze_weaknesses(chat_history)
+
+    # 3. RAG 配题：5道填空题
+    exercises = retrieve_questions(
+        topic=teaching_script.get("Topic"),
+        weaknesses=weaknesses,
+        num_questions=5,
+        question_type="fill_blank"
+    )
+
+    # 4. 判题 + 生成总结报告
+    summary_report = generate_report(
+        topic=teaching_script.get("Topic"),
+        summary=teaching_script.get("Summary"),
+        weaknesses=weaknesses,
+        exercises=exercises
+    )
+
+    # 5. 更新缓存
+    lesson_cache.update_lesson_exercises(session_id, exercises)
+    lesson_cache.update_lesson_summary(session_id, summary_report)
+    lesson_cache.save_chat_history(session_id, summary_report, Step.FINAL_SUMMARY)
+    lesson_cache.save_chat_history(session_id, exercises, Step.PRACTICE)
+
+    # 6. 持久化到 Cosmos DB
+    record_id = uuid.uuid4().hex
+    create_file_record(record_id, {
+        "session_id": session_id,
+        "lesson_index": lesson_index,
+        "weaknesses": weaknesses,
+        "exercises": exercises,
+        "summary": summary_report
+    })
+
+    # 7. 返回结果
+    return {
+        "message": "Summary and exercises generated successfully",
+        "session_id": session_id,
+        "lesson_index": lesson_index,
+        "record_id": record_id,
+        "weaknesses": weaknesses,
+        "exercises": exercises,
+        "summary_report": summary_report
+    }
 
 
 # 用户点击退出 OR 全部课程上完退出
