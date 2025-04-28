@@ -13,7 +13,7 @@ from app.tools.azure_redis_for_cache import lesson_cache
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from app.agent.stage0_preparing import generate_teaching_script
-
+from app.agent.stage2_discussion import generate_discussion_history
 from app.schemas.chatHistory import Step
 
 
@@ -64,9 +64,10 @@ async def start_mini_lesson(session_id: str, lesson_index: int):
 # 开始小组讨论
 @router.post("/session/{session_id}/lesson/{lesson_index}/discussion")
 async def start_discussion(session_id: str, lesson_index: int):
-    group_discussion_question=lesson_cache.get_group_discussion(session_id, lesson_index)
-    # TODO: 小组讨论
-    # lesson_cache.save_chat_history(session_id, message_list, Step.GROUP_DISCUSSION)
+    chat_history = lesson_cache.get_lesson_state(session_id, lesson_index)['chat_history']
+    discussion_question = lesson_cache.get_group_discussion(session_id, lesson_index)
+    await generate_discussion_history(chat_history, discussion_question)
+    lesson_cache.save_chat_history(session_id, chat_history[Step.GROUP_DISCUSSION], Step.GROUP_DISCUSSION)
     return
 
 
