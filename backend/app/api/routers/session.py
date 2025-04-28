@@ -15,6 +15,7 @@ from fastapi.responses import HTMLResponse
 from app.agent.stage0_preparing import generate_teaching_script
 from app.agent.stage2_discussion import generate_discussion_history
 from app.schemas.chatHistory import Step
+from app.agent.stage4 import analyze_weaknesses, retrieve_questions, generate_report
 
 
 router = APIRouter(tags=["study"])
