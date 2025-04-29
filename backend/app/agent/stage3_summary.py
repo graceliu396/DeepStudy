@@ -1,5 +1,3 @@
-# backend/app/agent/stage4/learning_analysis.py
-
 import os
 import json
 import asyncio
@@ -15,16 +13,21 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
 
+# 全局 kernel 实例
+kernel = None
+
 def _create_kernel() -> Kernel:
-    kernel = Kernel()
-    chat_service = OpenAIChatCompletion(
-        ai_model_id="gpt-4",  # 这里可以按需换成deepseek-chat或gpt-4
-        async_client=AsyncOpenAI(
-            api_key=OPENAI_API_KEY,
-            base_url=OPENAI_API_BASE,
-        ),
-    )
-    kernel.add_service(chat_service)
+    global kernel
+    if kernel is None:
+        kernel = Kernel()
+        chat_service = OpenAIChatCompletion(
+            ai_model_id="gpt-4",
+            async_client=AsyncOpenAI(
+                api_key=OPENAI_API_KEY,
+                base_url=OPENAI_API_BASE,
+            ),
+        )
+        kernel.add_service(chat_service)
     return kernel
 
 # Agent instructions
@@ -57,16 +60,32 @@ QUESTION_RETRIEVAL_INSTRUCTIONS = """
 **要求**：
 - 题目要精准对标学生弱点
 - 至少生成3题
-- 每题包括题目内容和标准答案
+- 每题包括题目内容、选项、标准答案
 - 输出格式为JSON：
 
 [START]
 {
     "questions": [
-        {"question": "题目内容", "answer": "标准答案"},
+        {"question": "题目内容", "options": ["A", "B", "C", "D"], "answer": "B"},
         ...
     ]
 }
+[END]
+"""
+
+EXPLANATION_INSTRUCTIONS = """
+你是一个教学讲解专家。
+学生刚刚在以下题目中答错了，请你详细讲解错因，并帮助他们理解正确答案。
+
+题目：{question}
+学生答案：{student_answer}
+正确答案：{correct_answer}
+
+请用通俗易懂的语言解释为什么学生错了、为什么正确答案是对的。
+可以使用比喻、例子、画图等方式。
+输出格式为JSON：
+[START]
+{"explanation": "你的讲解内容..."}
 [END]
 """
 
@@ -102,25 +121,78 @@ def parse_agent_json(raw_content: str) -> dict:
     except Exception as e:
         raise ValueError(f"Failed to parse agent output: {e}")
 
-# stage4 主流程
-
+# 主流程函数
 async def analyze_weaknesses(chat_history: str) -> dict:
-    kernel = _create_kernel()
-    agent = ChatCompletionAgent(kernel=kernel, name="WeaknessAnalyzer", instructions=ANALYSIS_INSTRUCTIONS)
+    agent = ChatCompletionAgent(kernel=_create_kernel(), name="WeaknessAnalyzer", instructions=ANALYSIS_INSTRUCTIONS)
     response = await agent.get_response(messages=chat_history)
     return parse_agent_json(response.content.content)
 
 async def retrieve_questions(weaknesses: dict, teaching_script: dict) -> dict:
-    kernel = _create_kernel()
     instructions = QUESTION_RETRIEVAL_INSTRUCTIONS.format(
         weaknesses=json.dumps(weaknesses, ensure_ascii=False),
         teaching_script=json.dumps(teaching_script, ensure_ascii=False)
     )
-    agent = ChatCompletionAgent(kernel=kernel, name="QuestionRetriever", instructions=instructions)
+    agent = ChatCompletionAgent(kernel=_create_kernel(), name="QuestionRetriever", instructions=instructions)
     response = await agent.get_response(messages="请根据上面的信息出题")
     return parse_agent_json(response.content.content)
 
+async def explain_question_mistake(question: str, student_answer: str, correct_answer: str) -> str:
+    instructions = EXPLANATION_INSTRUCTIONS.format(
+        question=question,
+        student_answer=student_answer,
+        correct_answer=correct_answer
+    )
+    agent = ChatCompletionAgent(kernel=_create_kernel(), name="MistakeExplainer", instructions=instructions)
+    response = await agent.get_response(messages="请开始讲解")
+    return parse_agent_json(response.content.content)
+
 async def generate_report(teaching_script: dict, chat_history: str, weaknesses: dict) -> dict:
-    kernel = _create_kernel()
-    agent = ChatCompletionAgent(kernel=kernel, name="SummaryGenerator", instructions=SUMMARY_INSTRUCTIONS)
-    combined_input = f"教学内容：{json.dumps(teaching_script, ensure_ascii=False)}\n学生表现：{_
+    agent = ChatCompletionAgent(kernel=_create_kernel(), name="SummaryGenerator", instructions=SUMMARY_INSTRUCTIONS)
+    combined_input = f"教学内容：{json.dumps(teaching_script, ensure_ascii=False)}\n学生表现：{chat_history}\n学生弱点：{json.dumps(weaknesses, ensure_ascii=False)}"
+    response = await agent.get_response(messages=combined_input)
+    return parse_agent_json(response.content.content)
+
+# 串联主流程
+task_history = []
+
+async def full_practice_flow(chat_history: str, teaching_script: dict, student_answers: list) -> dict:
+    try:
+        weaknesses = await analyze_weaknesses(chat_history)
+    except Exception as e:
+        return {"error": f"分析知识薄弱点失败: {str(e)}"}
+
+    try:
+        questions = await retrieve_questions(weaknesses, teaching_script)
+    except Exception as e:
+        return {"error": f"出题失败: {str(e)}"}
+
+    if len(student_answers) > len(questions["questions"]):
+        return {"error": "学生答案数量多于题目数量，可能存在数据错误"}
+
+    explanations = []
+    for idx, (q, student_answer) in enumerate(zip(questions["questions"], student_answers)):
+        if student_answer == "end practice":
+            break
+        try:
+            if student_answer != q["answer"]:
+                explanation = await explain_question_mistake(
+                    q["question"], student_answer, q["answer"]
+                )
+                explanations.append({"question": q["question"], "explanation": explanation["explanation"]})
+            else:
+                explanations.append({"question": q["question"], "explanation": "答对了，继续加油！"})
+        except Exception as e:
+            explanations.append({"question": q["question"], "explanation": f"讲解失败: {str(e)}"})
+
+    try:
+        summary = await generate_report(teaching_script, chat_history, weaknesses)
+    except Exception as e:
+        return {"error": f"总结生成失败: {str(e)}"}
+
+    return {
+        "weaknesses": weaknesses,
+        "questions": questions,
+        "explanations": explanations,
+        "summary": summary
+    }
+
