@@ -4,7 +4,10 @@ import asyncio
 import logging
 from datetime import datetime
 from random import randint
-
+import sys
+from pathlib import Path
+print(str(Path(__file__).parent.parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 from app.agent.utils import AudioPlayerWebsocket, AudioRecorderWebsocket
 from semantic_kernel import Kernel
 from semantic_kernel.connectors.ai import FunctionChoiceBehavior

@@ -12,8 +12,6 @@ from app.core.config import settings
 import logging
 from sqlmodel import Session
 from app.core.db import engine, init_db
-from app.api.routers.session import subapi
-from chainlit.utils import mount_chainlit
 
 
 logging.basicConfig(level=logging.INFO)
@@ -24,23 +22,11 @@ def custom_generate_unique_id(route: APIRoute) -> str:
     return f"{route.tags[0]}-{route.name}"
 
 
-
-
-
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     generate_unique_id_function=custom_generate_unique_id,
 )
-
-@subapi.get("/sub")
-def read_sub():
-    return {"message": "Hello World from sub API"}
-
-
-app.mount("/subapi", subapi)
-mount_chainlit(app, r"D:\Programming\AIAgent\SemanticKernel\hackathon\simclass\backend\app\agent\stage1_teaching_chainlit.py", "/chainlit/session_936cb00d-ffdf-42e1-a0da-202a404b219e")
-
 # Set all CORS enabled origins
 if settings.all_cors_origins:
     app.add_middleware(
