@@ -106,13 +106,12 @@ class Settings(BaseSettings):
 
     SMTP_TLS: bool = True
     SMTP_SSL: bool = False
-    SMTP_PORT: int = 587
-    SMTP_HOST: str = "smtp.qq.com"
-    SMTP_USER: str ="1059752643@qq.com"
-    SMTP_PASSWORD: str ="scsecgegfzkqbcia"
-    EMAILS_FROM_EMAIL: EmailStr ="1059752643@qq.com"
-    EMAILS_FROM_NAME: str ="Simclass-EDU"
-
+    SMTP_PORT: int = 
+    SMTP_HOST: str = 
+    SMTP_USER: str =
+    SMTP_PASSWORD: str =
+    EMAILS_FROM_EMAIL: EmailStr =
+    EMAILS_FROM_NAME: str =
     @model_validator(mode="after")
     def _set_default_emails_from(self) -> Self:
         if not self.EMAILS_FROM_NAME:
@@ -126,9 +125,9 @@ class Settings(BaseSettings):
     def emails_enabled(self) -> bool:
         return bool(self.SMTP_HOST and self.EMAILS_FROM_EMAIL)
 
-    EMAIL_TEST_USER: EmailStr = "test@example.com"
-    FIRST_SUPERUSER: EmailStr = "1059752643@qq.com"
-    FIRST_SUPERUSER_PASSWORD: str = "12345678"
+    EMAIL_TEST_USER: EmailStr = 
+    FIRST_SUPERUSER: EmailStr = 
+    FIRST_SUPERUSER_PASSWORD: str = 
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":
