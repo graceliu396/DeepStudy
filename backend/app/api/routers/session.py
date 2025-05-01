@@ -70,13 +70,27 @@ async def start_mini_lesson(websocket:WebSocket, session_id: str, lesson_index: 
 
 
 # 开始小组讨论
-@router.post("/session/{session_id}/lesson/{lesson_index}/discussion")
-async def start_discussion(session_id: str, lesson_index: int):
-    chat_history = lesson_cache.get_lesson_state(session_id, lesson_index)['chat_history']
-    discussion_question = lesson_cache.get_group_discussion(session_id, lesson_index)
-    await generate_discussion_history(chat_history, discussion_question)
-    lesson_cache.save_chat_history(session_id, chat_history[Step.GROUP_DISCUSSION], Step.GROUP_DISCUSSION)
-    return
+@router.websocket("/ws/session/{session_id}/lesson/{lesson_index}/discussion")
+async def start_discussion(websocket:WebSocket, session_id: str, lesson_index: int):
+    await websocket.accept()
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+            chat_history = lesson_cache.get_lesson_state(session_id, lesson_index)['chat_history']
+            discussion_question = lesson_cache.get_group_discussion(session_id, lesson_index)
+            result = await get_response_from_one_agent(data, chat_history, discussion_question, session_id, lesson_index)
+            lesson_cache.save_chat_history(session_id, chat_history[Step.GROUP_DISCUSSION], Step.GROUP_DISCUSSION)
+
+            await websocket.send_json({
+                "type" : "message",
+                "text": result["classment_msg"],
+            }, "text")
+            
+    except Exception as e:
+        await websocket.close(code=1011)
+        print(f"WebSocket Error: {e}")
+   
 
 
 @router.post("/session/{session_id}/lesson/{lesson_index}/summary")

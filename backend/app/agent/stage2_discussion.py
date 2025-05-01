@@ -124,35 +124,61 @@ class DiscussionOrchestrator:
             print(f"Error: step received invalid speaker name '{next_speaker_name}' after determine_next_speaker/rule check.")
             return "User", input("Sorry, there was an issue deciding who speaks next. Your turn.")
 
-username = "Aaron"
+username = "Student"
 agent_a_name = "Eddie"
 agent_b_name = "Gracie"
 agent_c_name = "Raina"
 
-async def generate_discussion_history(chat_history, discussion_question):
-    orch = DiscussionOrchestrator(
-      agents=[
-          agent_a(username, agent_a_name, agent_b_name, agent_c_name),
-          agent_b(username, agent_a_name, agent_b_name, agent_c_name),
-          agent_c(username, agent_a_name, agent_b_name, agent_c_name),
-      ],
-      planner=planner_agent(username, agent_a_name, agent_b_name, agent_c_name),
-      chat_history=chat_history,
-      discussion_question=discussion_question,
-    )
-    
-    max_agent_turns = 5
-    agent_turn_count = 0
-    while True:
-      if agent_turn_count >= max_agent_turns:
-        speaker, text = await orch.step(force_user=True)
-      else:
-        speaker, text = await orch.step()
-      self.chat_history[Step.GROUP_DISCUSSION].append(f"{speaker}: {text}")
+async def get_response_from_one_agent(student_msg: str, chat_history: dict, discussion_question: str, session_id: str, lesson_index: int) -> dict:
+    agents = [
+        agent_a(username, agent_a_name, agent_b_name, agent_c_name),
+        agent_b(username, agent_a_name, agent_b_name, agent_c_name),
+        agent_c(username, agent_a_name, agent_b_name, agent_c_name),
+    ]
+    planner = planner_agent(username, agent_a_name, agent_b_name, agent_c_name)
+    agent_dict = {agent.name: agent for agent in agents}
 
-      if speaker == "User":
-          agent_turn_count = 0
-          if text.strip().upper() == 'END_DISCUSSION':
-              return
+    teaching_history_list = chat_history.get(Step.TEACHING.value, [])
+    discussion_history_list = chat_history.get(Step.GROUP_DISCUSSION.value, [])
 
-      agent_turn_count += 1
+    discussion_history_list.append({"role": "User", "content": student_msg})
+
+    history_string = ""
+    for msg in teaching_history_list:
+        history_string += f"{msg.get('role', 'Unknown')}: {msg.get('content', '')}\n"
+
+    history_string += f"\n--- Group Discussion about: \"{discussion_question}\" ---\n"
+
+    for msg in discussion_history_list:
+        history_string += f"{msg.get('role', 'Unknown')}: {msg.get('content', '')}\n"
+
+
+    next_speaker_name = None
+    attempts = 0
+    max_attempts = 3 
+    while attempts < max_attempts:
+        planner_response = await planner.get_response(messages=history_string)
+        potential_speaker = str(planner_response.message.content).strip()
+        if potential_speaker != "User" and potential_speaker in agent_dict:
+            next_speaker_name = potential_speaker
+            break
+        else:
+            print(f"Planner suggested '{potential_speaker}', retrying...")
+            attempts += 1
+
+    if not next_speaker_name:
+        print("Planner failed to select an agent after multiple attempts. Defaulting to leader.")
+        next_speaker_name = agent_a_name
+
+    selected_agent = agent_dict.get(next_speaker_name)
+    if not selected_agent:
+         print(f"Error: Could not find agent named '{next_speaker_name}'. Defaulting to leader.")
+         selected_agent = agent_dict[agent_a_name]
+         next_speaker_name = agent_a_name
+
+    agent_response = await selected_agent.get_response(messages=history_string)
+    agent_reply = str(agent_response.message.content).strip()
+
+    discussion_history_list.append({"role": next_speaker_name, "content": agent_reply})
+
+    return {"classment_msg": agent_reply}
