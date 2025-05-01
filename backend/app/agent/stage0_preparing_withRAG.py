@@ -20,37 +20,54 @@ from semantic_kernel.agents.strategies import (
 from semantic_kernel.functions import kernel_function
 from serpapi import GoogleSearch
 from app.core.config import settings
+from app.agent.rag import *
+from semantic_kernel.functions import KernelArguments
 
 
-# @kernel_function(
-#     name="web_search_tool",
-#     description="Performs online searches using a third-party API provider"
-# )
-# def fetch_web_results(search_term: str, region: str = "us", result_count: int = 2) -> str:
-#     """Retrieves search results from the web for a given query."""
+@kernel_function(
+    name="web_search_tool",
+    description="Performs online searches using a third-party API provider"
+)
+def fetch_web_results(search_term: str, region: str = "us", result_count: int = 2) -> str:
+    """Retrieves search results from the web for a given query."""
     
-#     api_parameters = {
-#         "engine": "google",
-#         "q": search_term,
-#         "location": region,
-#         "api_key": settings.SERPAPI_KEY,
-#         "num": result_count,
-#     }
+    api_parameters = {
+        "engine": "google",
+        "q": search_term,
+        "location": region,
+        "api_key": settings.SERPAPI_KEY,
+        "num": result_count,
+    }
     
-#     response = GoogleSearch(api_parameters).get_dict()
-#     search_results = response.get("organic_results", [])
+    response = GoogleSearch(api_parameters).get_dict()
+    search_results = response.get("organic_results", [])
     
-#     if not search_results:
-#         return "No matching results available."
+    if not search_results:
+        return "No matching results available."
         
-#     formatted_output = []
-#     for idx, item in enumerate(search_results):
-#         title = item.get("title", "Untitled")
-#         description = item.get("snippet", "No description available")
-#         formatted_output.append(f"{idx+1}. {title} - {description}")
+    formatted_output = []
+    for idx, item in enumerate(search_results):
+        title = item.get("title", "Untitled")
+        description = item.get("snippet", "No description available")
+        formatted_output.append(f"{idx+1}. {title} - {description}")
         
-#     return "\n".join(formatted_output)
+    return "\n".join(formatted_output)
 
+@kernel_function(
+    name="file_search_tool",
+    description="Provide The Common Standards of USA for K12 students' mathematical learning."
+)
+def fetch_file_contents(query:str) -> str:
+    """Retrieves search results from the file storage."""
+    return answer_query(query)
+    
+kernel.add_functions(
+    plugin_name="SearchAssistant",
+    functions=[
+        fetch_file_contents,
+        fetch_web_results
+    ]
+)
 
 
 PLANNER_NAME = "Planner"
@@ -59,7 +76,7 @@ PLANNER_INSTRUCTIONS = load_prompt("stage0_planner")
 CHECKER_NAME = "Checker"
 CHECKER_INSTRUCTIONS = load_prompt("stage0_expert")
 
-TASK = """
+EXAMPLE_TASK = """
 {
     "mini_lesson_id": 1,
     "mini_lesson_title": "Understanding Multiplication as Equal Groups",
@@ -72,17 +89,23 @@ TASK = """
 }
 """
 
-async def generate_teaching_script(task: str):
+async def generate_teaching_script_RAG(task: str):
+    setting_planner=kernel.get_prompt_execution_settings_from_service_id(service_id="azure_openai")
+    setting_planner.function_choice_behavior.Auto()
     agent_planner = ChatCompletionAgent(
         kernel=kernel,
         name=PLANNER_NAME,
         instructions=PLANNER_INSTRUCTIONS,
+        arguments=KernelArguments(settings=setting_planner)
     )
 
+    setting_checker=kernel.get_prompt_execution_settings_from_service_id(service_id="azure_openai")
+    setting_checker.function_choice_behavior.NoneInvoke()
     agent_checker = ChatCompletionAgent(
         kernel=kernel,
         name=CHECKER_NAME,
         instructions=CHECKER_INSTRUCTIONS,
+        arguments=KernelArguments(settings=setting_checker)
     )
 
     # 用于存储最后一次 Planner 的回答
@@ -198,4 +221,4 @@ RESPONSE:
 
 
 if __name__ == "__main__":
-    asyncio.run(generate_teaching_script(TASK))
+    asyncio.run(generate_teaching_script_RAG(EXAMPLE_TASK))

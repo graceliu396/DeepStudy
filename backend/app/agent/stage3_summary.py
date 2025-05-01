@@ -1,126 +1,118 @@
-# backend/app/agent/stage4/learning_analysis.py
-
 import os
 import json
 import asyncio
 from semantic_kernel import Kernel
 from semantic_kernel.agents import ChatCompletionAgent
-from semantic_kernel.connectors.ai.open_ai import OpenAIChatCompletion
-from openai import AsyncOpenAI
-from dotenv import load_dotenv
+from semantic_kernel.functions import KernelArguments
+import sys
+from pathlib import Path
+print(str(Path(__file__).parent.parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
+from app.core.kernel import kernel,load_prompt
 
-# 加载环境变量
-load_dotenv()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
 
-def _create_kernel() -> Kernel:
-    kernel = Kernel()
-    chat_service = OpenAIChatCompletion(
-        ai_model_id="gpt-4",  # 这里可以按需换成deepseek-chat或gpt-4
-        async_client=AsyncOpenAI(
-            api_key=OPENAI_API_KEY,
-            base_url=OPENAI_API_BASE,
-        ),
-    )
-    kernel.add_service(chat_service)
-    return kernel
+QUESTION_RETRIEVAL_INSTRUCTIONS = load_prompt("stage3_quiz_generation")
 
-# Agent instructions
-ANALYSIS_INSTRUCTIONS = """
-你是一个教育测评专家。
-你的任务是根据学生在本节课中的提问、回答、犯的错误，提炼出他们的知识薄弱点。
+SUMMARY_INSTRUCTIONS = load_prompt("stage3_summary")
 
-**要求**：
-- 输出学生的知识薄弱点（准确、精炼）
-- 列出至少三个具体的薄弱点
-- 输出格式为JSON：
+SUMMARY_PROMPT = """
+Here is the teaching script of this lesson:
+{}
 
-[START]
-{
-    "weaknesses": [
-        {"topic": "知识点名称", "reason": "犯错/提问背后的原因"},
-        ...
-    ]
-}
-[END]
+And here is the chat history between teacher and student:
+{}
 """
 
-QUESTION_RETRIEVAL_INSTRUCTIONS = """
-你是一个教学题目出题专家。
-你的任务是基于以下两个条件，为学生智能推荐配套的练习题目：
+QUIZ_PROMPT = """
+Here is the teaching script of this lesson:
+{}
 
-1. 学生的知识薄弱点如下：{weaknesses}
-2. 本节课的教学内容如下：{teaching_script}
-
-**要求**：
-- 题目要精准对标学生弱点
-- 至少生成3题
-- 每题包括题目内容和标准答案
-- 输出格式为JSON：
-
-[START]
-{
-    "questions": [
-        {"question": "题目内容", "answer": "标准答案"},
-        ...
-    ]
-}
-[END]
+And here is the summary of this lesson, you can generate 4-5 fill-in-the-blank questions based on student's weakness:
+{}
 """
 
-SUMMARY_INSTRUCTIONS = """
-你是一个资深教学总结师。
-你的任务是根据本节课的内容、学生课堂表现、作答情况，生成一个结构化的总结报告。
-
-**总结报告需要包括**：
-- 本节课教学重点
-- 本节课教学难点
-- 学生个人短板（结合上节课分析的弱点）
-- 针对性的学习建议
-
-**输出格式为JSON**：
-
-[START]
-{
-    "summary": {
-        "teaching_highlights": "",
-        "teaching_difficulties": "",
-        "student_weaknesses": [],
-        "study_suggestions": ""
-    }
-}
-[END]
-"""
-
-# 辅助函数：清理并解析JSON
-def parse_agent_json(raw_content: str) -> dict:
+def parse_json_response(response):
     try:
-        cleaned = raw_content.replace("[START]", "").replace("[END]", "").strip()
-        return json.loads(cleaned)
-    except Exception as e:
-        raise ValueError(f"Failed to parse agent output: {e}")
+        cleaned_content = response
+        cleaned_content = cleaned_content.replace("[START]", "").replace("[END]", "")
+        cleaned_content = cleaned_content.replace("```json", "").replace("```", "")
+        cleaned_content = cleaned_content.strip()
+        json_content = json.loads(cleaned_content)
+        return json_content
+    except json.JSONDecodeError:
+        print("\nWarning: Unable to parse Planner's response as JSON format")
+
+def parse_md_response(response):
+    cleaned_content = response
+    cleaned_content = cleaned_content.replace("[START]", "").replace("[END]", "")
+    cleaned_content = cleaned_content.replace("```md", "").replace("```", "").replace("```markdown", "").replace("```Markdown", "")
+    cleaned_content = cleaned_content.strip()
+    return cleaned_content
 
 # stage4 主流程
 
-async def analyze_weaknesses(chat_history: str) -> dict:
-    kernel = _create_kernel()
-    agent = ChatCompletionAgent(kernel=kernel, name="WeaknessAnalyzer", instructions=ANALYSIS_INSTRUCTIONS)
-    response = await agent.get_response(messages=chat_history)
-    return parse_agent_json(response.content.content)
-
-async def retrieve_questions(weaknesses: dict, teaching_script: dict) -> dict:
-    kernel = _create_kernel()
-    instructions = QUESTION_RETRIEVAL_INSTRUCTIONS.format(
-        weaknesses=json.dumps(weaknesses, ensure_ascii=False),
-        teaching_script=json.dumps(teaching_script, ensure_ascii=False)
+async def retrieve_questions(summary_content: dict, teaching_script: dict) -> dict:
+    setting=kernel.get_prompt_execution_settings_from_service_id(service_id="azure_openai")
+    setting.function_choice_behavior.NoneInvoke()
+    question_generator=ChatCompletionAgent(
+        kernel=kernel,
+        name="question_generator",
+        instructions=QUESTION_RETRIEVAL_INSTRUCTIONS,
+        arguments=KernelArguments(settings=setting)
     )
-    agent = ChatCompletionAgent(kernel=kernel, name="QuestionRetriever", instructions=instructions)
-    response = await agent.get_response(messages="请根据上面的信息出题")
-    return parse_agent_json(response.content.content)
+    response=await question_generator.get_response(messages=QUIZ_PROMPT.format(teaching_script, summary_content))
+    print(response.message.content)
+    quiz=parse_json_response(response.message.content)
+    print(quiz)
+    quiz_without_ans=""
+    questions=quiz["questions"]
+    for question in questions:
+        quiz_without_ans+=question['stem']
+        quiz_without_ans+="\n"
+        quiz_without_ans+=question['options']
+        quiz_without_ans+="\n\n"
+    return quiz_without_ans
 
-async def generate_report(teaching_script: dict, chat_history: str, weaknesses: dict) -> dict:
-    kernel = _create_kernel()
-    agent = ChatCompletionAgent(kernel=kernel, name="SummaryGenerator", instructions=SUMMARY_INSTRUCTIONS)
-    combined_input = f"教学内容：{json.dumps(teaching_script, ensure_ascii=False)}\n学生表现：{_
+async def generate_report(teaching_script: dict, chat_history: str) -> str:
+    setting=kernel.get_prompt_execution_settings_from_service_id(service_id="azure_openai")
+    setting.function_choice_behavior.NoneInvoke()
+    generator=ChatCompletionAgent(
+        kernel=kernel,
+        name="summary_generator",
+        instructions=SUMMARY_INSTRUCTIONS,
+        arguments=KernelArguments(settings=setting)
+    )
+    response=await generator.get_response(messages=SUMMARY_PROMPT.format(teaching_script, chat_history))
+    md_summary_content=parse_md_response(response.message.content)
+    return md_summary_content
+
+
+async def main():
+    try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        json_file_path = os.path.join(script_dir, 'teaching_script.json')
+        txt_file_path = os.path.join(script_dir, "summary.txt")
+        with open(json_file_path, 'r', encoding='utf-8') as f:
+            teaching_script = json.load(f)
+            formatted_script = json.dumps(teaching_script, ensure_ascii=False, indent=2)
+
+        with open(txt_file_path, 'r', encoding='utf-8') as f:
+            summary_content = f.read()
+
+    except FileNotFoundError:
+        print("Error: teaching_script.json file not found")
+        return
+    except json.JSONDecodeError:
+        print("Error: Invalid JSON format in teaching_script.json")
+        return
+    except Exception as e:
+        print(f"Error occurred while reading file: {str(e)}")
+        return
+    
+    response = await retrieve_questions(summary_content, teaching_script)
+    print("Generated Report:")
+    print(response)
+
+if __name__ == "__main__":
+    asyncio.run(main())  

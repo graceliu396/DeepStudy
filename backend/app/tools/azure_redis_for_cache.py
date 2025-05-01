@@ -9,6 +9,8 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 from app.core.config import settings
 from app.schemas.chatHistory import Step
 from app.tools.azure_cosmos_db import file_container,chat_history_container
+from typing import Optional
+from enum import Enum
 
 class LessonCache:
     def __init__(self):
@@ -99,6 +101,63 @@ class LessonCache:
             "exercises": json.loads(exercises) if exercises else [],
             "chat_history": chat_data  # 包含所有类型的聊天记录
         }
+
+    def get_chat_history(self, session_id: str, lesson_index: int) -> dict:
+        """专用于获取课程聊天记录
+        
+        Args:
+            session_id: 会话唯一标识
+            lesson_index: 课程编号
+            
+        Returns:
+            {step_type: [message_dict]} 结构的历史记录
+        """
+        base_key = f"session:{session_id}:lesson:{lesson_index}"
+        chat_data = {}
+
+        # 使用pipeline批量获取所有聊天类型
+        with self.conn.pipeline() as pipe:
+            # 遍历所有预定义的聊天类型（假设Step是Enum）
+            for step in Step:
+                chat_key = f"{base_key}:chat_history:{step.value}"
+                pipe.lrange(chat_key, 0, -1)
+            
+            # 一次性执行所有LRANGE命令
+            raw_messages = pipe.execute()
+        
+        # 反序列化消息并填充数据结构
+        for step, messages in zip(Step, raw_messages):
+            chat_data[step.value] = [json.loads(msg) for msg in messages]
+
+        return chat_data
+    
+
+    def get_step_chat_history(
+        self, 
+        session_id: str, 
+        lesson_index: int, 
+        step: Enum  # 或使用 str 类型
+    ) -> list:
+        """获取指定步骤的聊天记录（自动处理空值）
+        
+        Args:
+            session_id: 会话唯一标识
+            lesson_index: 课程编号
+            step: 步骤类型枚举 (如 Step.QUIZ) 或步骤名称字符串
+            
+        Returns:
+            反序列化的消息列表，不存在时返回空列表
+        """
+        # 参数类型转换
+        step_value = step.value if isinstance(step, Enum) else str(step)
+        
+        # 构建Redis键
+        chat_key = f"session:{session_id}:lesson:{lesson_index}:chat_history:{step_value}"
+        
+        # 获取并处理数据
+        raw_messages = self.conn.lrange(chat_key, 0, -1)
+        return [json.loads(msg) for msg in raw_messages] if raw_messages else []
+
     
     def get_file_record_cache(self, file_id: str) -> dict:
         redis_key = f"file_upload:{file_id}"

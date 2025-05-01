@@ -45,7 +45,6 @@ def get_current_user(session: SessionDep, token: TokenDep) -> Users:
         raise HTTPException(status_code=400, detail="Inactive user")
     return user
 
-
 CurrentUser = Annotated[Users, Depends(get_current_user)]
 
 

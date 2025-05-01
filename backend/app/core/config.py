@@ -56,22 +56,6 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "simclass"
     SENTRY_DSN: HttpUrl | None = None
-    # AZURE_SQL_SERVER_NAME: str = "mysqlserver0412.database.windows.net"
-    # AZURE_SQL_DATABASE_NAME: str = "user_db"
-    # AZURE_SQL_USER_NAME: str = "simclass_admin"
-    # AZURE_SQL_PASSWORD: str = "Hackathon123"
-    # DRIVER:str ="{ODBC Driver 18 for SQL Server}"
-
-    # connection_string:str = f"DRIVER={DRIVER}; \
-    #     SERVER=tcp:{AZURE_SQL_SERVER_NAME},1433; \
-    #     DATABASE={AZURE_SQL_DATABASE_NAME}; \
-    #     UID={AZURE_SQL_USER_NAME}; \
-    #     PWD={AZURE_SQL_PASSWORD}; \
-    #     Encrypt=yes; \
-    #     TrustServerCertificate=no; \
-    #     Connection Timeout=30"
-    # connection_string:str = urllib.parse.quote_plus(connection_string)
-    # SQLALCHEMY_DATABASE_URI:str = 'mssql+pyodbc:///?odbc_connect=' + connection_string
 
     AZURE_DOCUMENT_INTELLIGENCE_KEY: str = "2cJ9tsf0Qj2mEt2l3CtkPYNYk1ma8xfZUgwJjiMnIkeSCeEXADspJQQJ99BDACYeBjFXJ3w3AAALACOGkr3h"
     AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT: str = "https://edupdfparser.cognitiveservices.azure.com/"
@@ -90,6 +74,18 @@ class Settings(BaseSettings):
     AZURE_OPENAI_API_KEY:str ="71wikMsLTuyyHKQRlvXKI2iPpiEAXTIQrX25txbCmZ0In8niQ7eNJQQJ99BDACHYHv6XJ3w3AAAAACOG7etS"
     AZURE_OPENAI_CHAT_DEPLOYMENT_NAME:str ="o3-mini"
 
+    AZURE_AI_ENDPOINT_DALLE:str="https://10597-ma0vw4ue-swedencentral.services.ai.azure.com"
+    AZURE_AI_KEY_DALLE:str="FN5q7kRKygIhhbfi7o2n41bP0qURfHvwPMVmveLnQKYN07ddR9BtJQQJ99BDACfhMk5XJ3w3AAAAACOGH37x"
+    AZURE_AI_DALLE_NAME:str="dall-e-3"
+
+    # Set endpoints and API keys for Azure services
+    AZURE_SEARCH_SERVICE: str = "PUT YOUR SEARCH SERVICE URL HERE"
+    AZURE_SEARCH_KEY: str = "DELETE IF USING ROLES, OTHERWISE PUT YOUR SEARCH SERVICE ADMIN KEY HERE"
+    AZURE_AI_MULTISERVICE_ACCOUNT: str = "PUT YOUR AZURE AI MULTISERVICE ACCOUNT URL HERE"
+    AZURE_AI_MULTISERVICE_KEY: str = "PUT YOUR AZURE AI MULTISERVICE KEY HERE. ROLES ARE USED TO CONNECT. KEY IS USED FOR BILLING."
+    AZURE_STORAGE_CONNECTION: str = "PUT YOUR AZURE STORAGE CONNECTION STRING HERE (see example below for syntax)"
+
+    SERPAPI_KEY:str="50c31eafdd3dd64245daba39a216c557"
 
 
     POSTGRES_SERVER: str="localhost"

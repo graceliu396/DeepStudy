@@ -2,7 +2,6 @@ from semantic_kernel import Kernel
 from openai import AsyncOpenAI
 from semantic_kernel.connectors.ai.open_ai.services.azure_chat_completion import AzureChatCompletion
 from semantic_kernel.connectors.ai.open_ai.services.open_ai_chat_completion import OpenAIChatCompletion
-from semantic_kernel.agents import AgentGroupChat, ChatCompletionAgent
 
 import os
 from app.core.config import settings
@@ -27,7 +26,18 @@ deepseek_chat_service = OpenAIChatCompletion(
         base_url="https://fast.xeduapi.com",
     ),
 )
+
+azure_openai_service = AzureChatCompletion(
+    service_id="azure_openai",
+    endpoint=settings.AZURE_OPENAI_ENDPOINT,
+    api_key=settings.AZURE_OPENAI_API_KEY,
+    deployment_name=settings.AZURE_OPENAI_CHAT_DEPLOYMENT_NAME,
+    api_version="2024-12-01-preview"
+)
+
+
 kernel = Kernel()
 kernel.add_service(deepseek_chat_service)
+kernel.add_service(azure_openai_service)
 
 
