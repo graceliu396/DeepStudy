@@ -2,19 +2,24 @@ import os
 import random
 from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
 from semantic_kernel.agents import ChatCompletionAgent
-from app.schemas.chatHistory import Step
-
-service = AzureChatCompletion(
-    endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    deployment_name=os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT_NAME"),
-    api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview")
-)
+from app.schemas.chatHistory import step
+from app.core.kernel import kernel
+from app.tools.plugins import Dalle3Plugin
+# service = AzureChatCompletion(
+#     endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+#     api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+#     deployment_name=os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT_NAME"),
+#     api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview")
+# )
+setting = kernal.get_prompt_execution_settings_from_service_id(service_id="azure_openai")
+setting.function_choice_behavior.Auto()
+plugin = Dalle3Plugin()
 
 def agent_a(username, agent_a_name, agent_b_name, agent_c_name):
     return ChatCompletionAgent(
-        service=service,
+        kernal=kernel,
         name=agent_a_name,
+        arguments=KernelArguments(setting=setting),
         instructions="""
     You are {agent_a_name}, the discussion leader in a math discussion involving {username}, {agent_b_name} and {agent_c_name}.
     
@@ -28,8 +33,9 @@ def agent_a(username, agent_a_name, agent_b_name, agent_c_name):
 
 def agent_b(username, agent_a_name, agent_b_name, agent_c_name):
     return ChatCompletionAgent(
-        service=service,
+        kernal=kernal,
         name=agent_b_name,
+        arguments=KernelArguments(setting=setting),
         instructions="""
     You are {agent_b_name}, a group member in a math discussion with {username}, {agent_a_name} and {agent_c_name}.
     
@@ -41,8 +47,9 @@ def agent_b(username, agent_a_name, agent_b_name, agent_c_name):
 
 def agent_c(username, agent_a_name, agent_b_name, agent_c_name):
     return ChatCompletionAgent(
-        service=service,
+        kernal=kernal,
         name=agent_c_name,
+        arguments=KernelArguments(setting=setting),
         instructions="""
     You are {agent_c_name}, skilled at math and quick-witted in a discussion with {username}, {agent_a_name}, and {agent_b_name}.
 
@@ -55,8 +62,9 @@ def agent_c(username, agent_a_name, agent_b_name, agent_c_name):
 
 def planner_agent(username, agent_a_name, agent_b_name, agent_c_name):
     return ChatCompletionAgent(
-        service=service,
+        kernal=kernal,
         name="Planner",
+        arguments=KernelArguments(setting=setting),
         instructions="""
     You are the planner for a group discussion involving three agents ({agent_a_name}, {agent_b_name}, {agent_c_name}) and the User named {username} who initiated the chat.
     Your role is to decide who speaks next based on the messages in the conversation history provided.

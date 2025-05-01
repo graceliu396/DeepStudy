@@ -19,18 +19,15 @@ class LessonCache:
             port=6380,
             password=settings.AZURE_REDIS_KEY,
             ssl=True,
-            decode_responses=True  # 自动解码返回数据
+            decode_responses=True  
         )
-        self.ttl = 3600 * 24 * 3  # 缓存保留3天
+        self.ttl = 3600 * 24 * 3  
 
 
     def create_session(self, user_id: str, file_id: str, total_lessons: int) -> str:
-        """创建新的学习会话"""
         session_id = f"session_{uuid4()}"
         
-        # 使用pipeline批量操作
         with self.conn.pipeline() as pipe:
-            # 存储会话数据
             pipe.hset(f"session:{session_id}", mapping={
                 "user_id": user_id,
                 "file_id": file_id,
@@ -38,21 +35,17 @@ class LessonCache:
                 "total_lessons": total_lessons
             })
             
-            # 设置TTL
             pipe.expire(f"session:{session_id}", self.ttl)
             pipe.execute()
             
         return session_id
     
     def create_file_record_cache(self, data: dict):
-        """将文件记录存储到Redis"""
         file_id = data['id']
         redis_key = f"file_upload:{file_id}"
         
         try:
-            # 使用pipeline批量操作
             with self.conn.pipeline() as pipe:
-                # 基础字段直接存储
                 pipe.hset(redis_key, mapping={
                     "user_id": data['user_id'],
                     "subject": data['subject'],
@@ -62,12 +55,10 @@ class LessonCache:
                     "total_lessons": data['total_lessons']
                 })
                 
-                # 处理嵌套的lesson_plan结构
                 lesson_plan_json = json.dumps(data['lesson_plan'])
                 # print(type(lesson_plan_json['lesson_sequence']))
                 pipe.hset(redis_key, "lesson_plan", lesson_plan_json)
                 
-                # 设置TTL（例如7天过期）
                 pipe.expire(redis_key, self.ttl)
                 pipe.execute()
             return True
@@ -76,22 +67,17 @@ class LessonCache:
             return False
 
     def get_lesson_state(self, session_id: str, lesson_index: int) -> dict:
-        """获取指定课程的状态（修复版）"""
         base_key = f"session:{session_id}:lesson:{lesson_index}"
         
-        # 获取脚本、总结、练习数据（哈希表操作）
         with self.conn.pipeline() as pipe:
-            # 哈希表数据：script/summary/exercises
             pipe.hget(f"{base_key}:data", "script")
             pipe.hget(f"{base_key}:data", "summary")
             pipe.hget(f"{base_key}:data", "exercises")
             script, summary, exercises = pipe.execute()
 
-        # 获取聊天记录（列表操作）
         chat_data = {}
-        for step in Step:  # 遍历所有聊天类型
+        for step in Step:  
             chat_key = f"{base_key}:chat_history:{step.value}"
-            # 使用LRANGE获取整个列表
             messages = self.conn.lrange(chat_key, 0, -1)
             chat_data[step.value] = [json.loads(msg) for msg in messages]
 
@@ -99,33 +85,20 @@ class LessonCache:
             "script": json.loads(script) if script else None,
             "summary": json.loads(summary) if summary else None,
             "exercises": json.loads(exercises) if exercises else [],
-            "chat_history": chat_data  # 包含所有类型的聊天记录
-        }
+            "chat_history": chat_data }
 
     def get_chat_history(self, session_id: str, lesson_index: int) -> dict:
-        """专用于获取课程聊天记录
         
-        Args:
-            session_id: 会话唯一标识
-            lesson_index: 课程编号
-            
-        Returns:
-            {step_type: [message_dict]} 结构的历史记录
-        """
         base_key = f"session:{session_id}:lesson:{lesson_index}"
         chat_data = {}
 
-        # 使用pipeline批量获取所有聊天类型
         with self.conn.pipeline() as pipe:
-            # 遍历所有预定义的聊天类型（假设Step是Enum）
             for step in Step:
                 chat_key = f"{base_key}:chat_history:{step.value}"
                 pipe.lrange(chat_key, 0, -1)
             
-            # 一次性执行所有LRANGE命令
             raw_messages = pipe.execute()
         
-        # 反序列化消息并填充数据结构
         for step, messages in zip(Step, raw_messages):
             chat_data[step.value] = [json.loads(msg) for msg in messages]
 
@@ -136,25 +109,13 @@ class LessonCache:
         self, 
         session_id: str, 
         lesson_index: int, 
-        step: Enum  # 或使用 str 类型
+        step: Enum 
     ) -> list:
-        """获取指定步骤的聊天记录（自动处理空值）
         
-        Args:
-            session_id: 会话唯一标识
-            lesson_index: 课程编号
-            step: 步骤类型枚举 (如 Step.QUIZ) 或步骤名称字符串
-            
-        Returns:
-            反序列化的消息列表，不存在时返回空列表
-        """
-        # 参数类型转换
         step_value = step.value if isinstance(step, Enum) else str(step)
         
-        # 构建Redis键
         chat_key = f"session:{session_id}:lesson:{lesson_index}:chat_history:{step_value}"
         
-        # 获取并处理数据
         raw_messages = self.conn.lrange(chat_key, 0, -1)
         return [json.loads(msg) for msg in raw_messages] if raw_messages else []
 
@@ -171,21 +132,17 @@ class LessonCache:
         
 
     def update_teaching_script(self, session_id: str, lesson_script: dict):
-        """更新教学进度"""
         lesson_index = self.conn.hget(f"session:{session_id}", "current_lesson")
         base_key = f"session:{session_id}:lesson:{lesson_index}"
         # print(lesson_script)
         
         with self.conn.pipeline() as pipe:
-            # 保存课程脚本
             pipe.hset(f"{base_key}:data", "script", json.dumps(lesson_script))
-            # 重置TTL
             pipe.expire(f"session:{session_id}", self.ttl)
             pipe.expire(f"{base_key}:data", self.ttl)
             pipe.execute()
 
     def update_lesson_summary(self, session_id: str, summary: str):
-        """更新教学总结"""
         lesson_index = self.conn.hget(f"session:{session_id}", "current_lesson")
         base_key = f"session:{session_id}:lesson:{lesson_index}"
 
@@ -196,7 +153,6 @@ class LessonCache:
             pipe.execute()
 
     def update_lesson_exercises(self, session_id: str, exercises: dict):
-        """更新练习题"""
         lesson_index = self.conn.hget(f"session:{session_id}", "current_lesson")
         base_key = f"session:{session_id}:lesson:{lesson_index}"
 
@@ -207,9 +163,7 @@ class LessonCache:
             pipe.execute()
 
     def start_new_lesson(self, session_id: str):
-        """开始新的课程小节"""
         with self.conn.pipeline() as pipe:
-            # 原子操作递增课程索引
             pipe.hincrby(f"session:{session_id}", "current_lesson", 1)
             pipe.execute()
             
@@ -217,33 +171,26 @@ class LessonCache:
         return int(current_lesson)
 
     def save_chat_history(self, session_id: str, messages: list, step_type: Step):
-        """保存聊天记录到指定类型的Redis列表"""
-        # 参数校验
         if not isinstance(step_type, Step):
             raise ValueError(f"Invalid step type: {step_type}")
         
-        # 获取当前课时索引
         lesson_index = self.conn.hget(f"session:{session_id}", "current_lesson")
         if not lesson_index:
             raise ValueError(f"Session {session_id} has no current_lesson")
         
-        # 构造类型专属的Redis键
         type_key = f"session:{session_id}:lesson:{lesson_index}:chat_history:{step_type.value}"
         print(type_key)
 
-        # 序列化消息并存储
         serialized = [json.dumps(msg) for msg in messages]
         print(serialized)
-        if serialized:  # 避免空列表操作
+        if serialized: 
             self.conn.rpush(type_key, *serialized)
-            self.conn.expire(type_key, self.ttl)  # 设置相同TTL
+            self.conn.expire(type_key, self.ttl) 
 
     def migrate_session_data(self, redis_session_id: str):
-        # 获取 Redis 中的会话基础数据
         session_key = f"session:{redis_session_id}"
         session_data = lesson_cache.conn.hgetall(session_key)
         
-        # 构建 Cosmos 文档结构
         cosmos_doc = {
             "session_id": redis_session_id,
             "type": "session",
@@ -254,11 +201,9 @@ class LessonCache:
             "lessons": []
         }
         
-        # 遍历每个课程数据
         for lesson_idx in range(cosmos_doc["totalLessons"]):
             lesson_data = lesson_cache.get_lesson_state(redis_session_id, lesson_idx)
             
-            # 转换聊天记录结构
             chat_history = {}
             for step_type in Step:
                 key = step_type.value
@@ -275,11 +220,9 @@ class LessonCache:
         chat_history_container.upsert_item(cosmos_doc)
 
     def migrate_file_data(self, file_id: str):
-        # 从 Redis 获取原始数据
         redis_key = f"file_upload:{file_id}"
         file_data = lesson_cache.conn.hgetall(redis_key)
         
-        # 构建 Cosmos 文档
         cosmos_doc = {
             "id": file_id,
             "user_id": file_data["user_id"],
@@ -297,37 +240,13 @@ class LessonCache:
 lesson_cache = LessonCache()
 
 
-# 测试用例
 def test_lesson_flow():
     cache = LessonCache()
     
-    # # 模拟用户创建会话
-    # user_id = "user_123"
-    # material_id = "material_456"
-    # session_id = cache.create_session(user_id, material_id, total_lessons=4)
     
-    # # 模拟第一节课
-    # lesson_script = {
-    #     "topic": "Python Basics",
-    #     "key_points": ["Variables", "Data Types"],
-    #     "discussion_topic": "Why Python is popular?"
-    # }
-    # cache.update_teaching_script(session_id, lesson_script)
-    
-    # # 模拟保存聊天记录
-    # chat_messages = [
-    #     {"role": "teacher", "content": "Let's start with variables"},
-    #     {"role": "user", "content": "What's a string?"}
-    # ]
-    # cache.save_chat_history(session_id, chat_messages, Step.TEACHING)
-    
-    # 获取当前状态
     state = cache.get_lesson_state("session_94f6b7de-011a-4142-9fd8-2406761a841c", 0)
     print("Lesson State:", state)
     
-    # # 切换到下一节课
-    # cache.start_new_lesson(session_id)
-    # print("Current Lesson:", cache.conn.hget(f"session:{session_id}", "current_lesson"))
 
 if __name__ == "__main__":
     test_lesson_flow()
