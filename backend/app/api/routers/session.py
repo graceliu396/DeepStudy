@@ -27,7 +27,7 @@ async def start_session(file_id: str):
     file_record=lesson_cache.get_file_record_cache(file_id)
     session_id=lesson_cache.create_session(file_record['user_id'], file_id, file_record['total_lessons'])
     mini_lesson_plan=(eval(file_record['lesson_plan']))['lesson_sequence'][0]
-    teaching_script= await generate_teaching_script(str(mini_lesson_plan))
+    teaching_script= await generate_teaching_script_RAG(str(mini_lesson_plan))
     print(teaching_script)
     lesson_cache.update_teaching_script(session_id, teaching_script)
 
@@ -79,7 +79,6 @@ async def start_discussion(session_id: str, lesson_index: int):
     return
 
 
-
 @router.post("/session/{session_id}/lesson/{lesson_index}/summary")
 async def start_summary(session_id: str, lesson_index: int):
     chat_history = lesson_cache.get_chat_history(session_id, lesson_index)
@@ -94,8 +93,6 @@ async def start_summary(session_id: str, lesson_index: int):
         "report": report,
         "exercise": exercise
     }
-
-
 
 # 用户点击退出 OR 全部课程上完退出
 @router.post("/session/{session_id}/exit")
