@@ -4,15 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { IoExitOutline, IoMicOutline, IoMicOffOutline } from 'react-icons/io5';
 import { keyframes } from '@emotion/react';
 
-const slowZoom = keyframes`
-  0% {
-    transform: scale(1);
-  }
-  100% {
-    transform: scale(1.1);
-  }
-`;
-
 const PageContainer = styled.div`
   min-height: 100vh;
   width: 100vw;
@@ -60,7 +51,6 @@ const PageContainer = styled.div`
     z-index: -1;
     opacity: 0.9;
     filter: contrast(1.1) brightness(1.1);
-    animation: ${slowZoom} 30s alternate infinite ease-in-out;
   }
 `;
 

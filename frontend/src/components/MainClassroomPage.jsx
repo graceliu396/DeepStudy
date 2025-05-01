@@ -1,16 +1,14 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled from '@emotion/styled';
 import { keyframes } from '@emotion/react';
 import { useNavigate } from 'react-router-dom';
 import { IoExitOutline, IoHeadsetOutline } from 'react-icons/io5';
+import { createTeachingWebSocket, exitSession, getLessonSummary, startNextLesson } from '../utils/api';
 
-const slowZoom = keyframes`
-  0% {
-    transform: scale(1);
-  }
-  100% {
-    transform: scale(1.1);
-  }
+// Blinking cursor animation
+const blink = keyframes`
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 `;
 
 const PageContainer = styled.div`
@@ -19,7 +17,7 @@ const PageContainer = styled.div`
   display: flex;
   background: linear-gradient(135deg, rgba(26, 26, 46, 0.75) 0%, rgba(22, 33, 62, 0.75) 100%);
   color: white;
-  position: absolute;
+  position: fixed;
   left: 0;
   top: 0;
   right: 0;
@@ -40,7 +38,6 @@ const PageContainer = styled.div`
     z-index: -1;
     opacity: 0.9;
     filter: contrast(1.1) brightness(1.1);
-    animation: ${slowZoom} 30s alternate infinite ease-in-out;
   }
 `;
 
@@ -49,8 +46,10 @@ const ContentContainer = styled.div`
   width: 100%;
   height: 100%;
   padding: 2rem;
+  padding-top: 110px;
   gap: 2rem;
   z-index: 1;
+  overflow: hidden;
 `;
 
 const CharacterSection = styled.div`
@@ -68,20 +67,103 @@ const CharacterSection = styled.div`
 
 const ChatSection = styled.div`
   flex: 1;
-  background: rgba(26, 26, 46, 0.85);
+  height: 100%;
+  background: rgba(26, 26, 46, 0.65);
   border-radius: 20px;
   backdrop-filter: blur(10px);
   overflow: hidden;
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  display: flex;
+  flex-direction: column;
+`;
+
+const ChatMessages = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  height: calc(100% - 80px); // Account for the input area height
+`;
+
+const Message = styled.div`
+  max-width: 80%;
+  padding: 1rem;
+  border-radius: 15px;
+  background: ${props => props.isUser ? 'rgba(79, 172, 254, 0.2)' : 'rgba(255, 255, 255, 0.1)'};
+  align-self: ${props => props.isUser ? 'flex-end' : 'flex-start'};
+  color: #e6f0ff;
+  text-align: ${props => props.isUser ? 'right' : 'left'};
   position: relative;
 
-  iframe {
-    opacity: 0.9;
-    transition: opacity 0.3s ease;
-  }
+  /* Blinking cursor for messages being typed */
+  ${props => props.isTyping && `
+    &::after {
+      content: '|';
+      display: inline-block;
+      margin-left: 2px;
+      animation: ${blink} 1s infinite;
+      position: absolute;
+    }
+  `}
+`;
 
-  &:hover iframe {
-    opacity: 1;
+const SummaryMessage = styled(Message)`
+  max-width: 90%;
+  color: #e6f0ff;
+  line-height: 1.6;
+  font-family: 'Consolas', monospace;
+  white-space: pre-wrap;
+  position: relative;
+
+  /* For typewriter effect */
+  ${props => props.isTyping && `
+    &::after {
+      content: '|';
+      display: inline-block;
+      margin-left: 2px;
+      animation: ${blink} 1s infinite;
+      position: absolute;
+    }
+  `}
+`;
+
+const ChatInput = styled.div`
+  padding: 1rem;
+  background: rgba(26, 26, 46, 0.95);
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+`;
+
+const Input = styled.input`
+  flex: 1;
+  padding: 0.8rem 1rem;
+  border: none;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #e6f0ff;
+  font-size: 1rem;
+
+  &:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.15);
+  }
+`;
+
+const SendButton = styled.button`
+  padding: 0.8rem 1.5rem;
+  border: none;
+  border-radius: 15px;
+  background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+  color: white;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
   }
 `;
 
@@ -119,7 +201,7 @@ const TeacherRole = styled.h3`
 
 const QuitButton = styled.button`
   position: absolute;
-  top: 2rem;
+  top: 110px;
   left: 2rem;
   padding: 0.8rem 1.5rem;
   font-size: 1rem;
@@ -171,15 +253,269 @@ const ImmersiveModeCTA = styled.button`
   }
 `;
 
+const TypewriterMessage = ({ message, isUser }) => {
+  const [displayText, setDisplayText] = useState('');
+  const [isComplete, setIsComplete] = useState(false);
+  const fullText = message.text;
+  const textSpeed = 25; // milliseconds per character
+
+  useEffect(() => {
+    // If user message, show immediately
+    if (isUser) {
+      setDisplayText(fullText);
+      setIsComplete(true);
+      return;
+    }
+
+    // For AI messages, use typewriter effect
+    let i = 0;
+    const typingInterval = setInterval(() => {
+      if (i < fullText.length) {
+        setDisplayText(fullText.substring(0, i + 1));
+        i++;
+      } else {
+        clearInterval(typingInterval);
+        setIsComplete(true);
+      }
+    }, textSpeed);
+
+    return () => clearInterval(typingInterval);
+  }, [fullText, isUser]);
+
+  return (
+    <Message isUser={isUser} isTyping={!isComplete && !isUser}>
+      {displayText}
+    </Message>
+  );
+};
+
+const TypewriterEffect = ({ text }) => {
+  const [displayText, setDisplayText] = useState('');
+  const [isComplete, setIsComplete] = useState(false);
+  const textSpeed = 10; // milliseconds per character
+
+  useEffect(() => {
+    let i = 0;
+    const typingInterval = setInterval(() => {
+      if (i < text.length) {
+        setDisplayText(text.substring(0, i + 1));
+        i++;
+      } else {
+        clearInterval(typingInterval);
+        setIsComplete(true);
+      }
+    }, textSpeed);
+
+    return () => clearInterval(typingInterval);
+  }, [text]);
+
+  return (
+    <SummaryMessage isUser={false} isTyping={!isComplete}>
+      {displayText}
+    </SummaryMessage>
+  );
+};
+
 const MainClassroomPage = () => {
   const navigate = useNavigate();
+  const [messages, setMessages] = useState([
+    {
+      id: 1,
+      text: "Welcome to class! I'm preparing your personalized lesson...",
+      isUser: false
+    }
+  ]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [teacherImageUrl, setTeacherImageUrl] = useState('/teacher-avatar.png');
+  const [sessionId, setSessionId] = useState(null);
+  const [lessonIndex, setLessonIndex] = useState(0);
+  const [lessonComplete, setLessonComplete] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const [lessonSummary, setLessonSummary] = useState('');
+  const [socket, setSocket] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const messagesEndRef = useRef(null);
 
-  const handleQuit = () => {
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, showSummary]);
+
+  // Initialize WebSocket connection when component mounts
+  useEffect(() => {
+    // Retrieve session data from localStorage
+    const storedSessionId = localStorage.getItem('sessionId');
+    const storedLessonIndex = localStorage.getItem('lessonIndex');
+    
+    if (storedSessionId && storedLessonIndex) {
+      setSessionId(storedSessionId);
+      setLessonIndex(parseInt(storedLessonIndex, 10));
+      
+      // Create WebSocket connection
+      const newSocket = createTeachingWebSocket(
+        storedSessionId,
+        storedLessonIndex,
+        handleSocketMessage,
+        handleSocketError
+      );
+      
+      setSocket(newSocket);
+      
+      // Send initial message to start the teaching session
+      setTimeout(() => {
+        if (newSocket.readyState === WebSocket.OPEN) {
+          newSocket.send(JSON.stringify({ action: 'start_teaching' }));
+        }
+      }, 1000);
+    } else {
+      setError('No active session found. Please start a new session from the introduction page.');
+    }
+    
+    // Clean up function
+    return () => {
+      if (socket) {
+        socket.close();
+      }
+    };
+  }, []);
+
+  const handleSocketMessage = (data) => {
+    if (data.type === 'message') {
+      const newMessage = {
+        id: Date.now(),
+        text: data.text,
+        isUser: false
+      };
+      
+      setMessages(prev => [...prev, newMessage]);
+      
+      // Update teacher image if provided
+      if (data.image_url) {
+        setTeacherImageUrl(data.image_url);
+      }
+      
+      // Check if this is a completion message
+      if (data.text.includes('lesson completed') || data.text.includes('completed the lesson')) {
+        setLessonComplete(true);
+        fetchLessonSummary();
+      }
+    }
+  };
+  
+  const handleSocketError = (error) => {
+    console.error('WebSocket error:', error);
+    setError('Connection error. Please try refreshing the page.');
+  };
+  
+  const fetchLessonSummary = async () => {
+    try {
+      setIsLoading(true);
+      const summaryData = await getLessonSummary(sessionId, lessonIndex);
+      setLessonSummary(summaryData.report);
+      setShowSummary(true);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error fetching lesson summary:', error);
+      setError('Failed to fetch lesson summary');
+      setIsLoading(false);
+    }
+  };
+
+  const handleQuit = async () => {
+    if (sessionId) {
+      try {
+        await exitSession(sessionId);
+      } catch (error) {
+        console.error('Error ending session:', error);
+      }
+    }
     navigate('/introduction');
   };
 
   const handleImmersiveMode = () => {
     navigate('/voice-interaction');
+  };
+
+  const handleSendMessage = () => {
+    if (inputMessage.trim() && socket && socket.readyState === WebSocket.OPEN) {
+      // Add user message to chat
+      const newMessage = {
+        id: Date.now(),
+        text: inputMessage,
+        isUser: true
+      };
+      setMessages(prev => [...prev, newMessage]);
+      
+      // Send message to server through WebSocket
+      socket.send(inputMessage);
+      setInputMessage('');
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSendMessage();
+    }
+  };
+
+  const handleStartNextLesson = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const fileId = localStorage.getItem('fileId');
+      if (!fileId) {
+        throw new Error('File ID not found. Please upload a lesson plan again.');
+      }
+      
+      // Call the API to prepare the next lesson
+      const response = await startNextLesson(sessionId, fileId);
+      
+      // Update lesson index in localStorage
+      const newLessonIndex = response.lesson_index;
+      localStorage.setItem('lessonIndex', newLessonIndex);
+      setLessonIndex(newLessonIndex);
+      
+      // Close current socket
+      if (socket) {
+        socket.close();
+      }
+      
+      // Create new socket for the next lesson
+      const newSocket = createTeachingWebSocket(
+        sessionId,
+        newLessonIndex,
+        handleSocketMessage,
+        handleSocketError
+      );
+      
+      setSocket(newSocket);
+      
+      // Reset UI state
+      setMessages([{
+        id: Date.now(),
+        text: `Welcome to Lesson ${parseInt(newLessonIndex) + 1}! I'm preparing your personalized content...`,
+        isUser: false
+      }]);
+      setLessonComplete(false);
+      setShowSummary(false);
+      
+      // Send initial message to start the teaching session
+      setTimeout(() => {
+        if (newSocket.readyState === WebSocket.OPEN) {
+          newSocket.send(JSON.stringify({ action: 'start_teaching' }));
+        }
+      }, 1000);
+      
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error starting next lesson:', error);
+      setError('Failed to start the next lesson. Please try again.');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -189,7 +525,7 @@ const MainClassroomPage = () => {
       </QuitButton>
       <ContentContainer>
         <CharacterSection>
-          <TeacherImage />
+          <TeacherImage style={{ backgroundImage: `url(${teacherImageUrl})` }} />
           <TeacherInfoContainer>
             <TeacherName>Miss Wood</TeacherName>
             <TeacherRole>Virtual Teacher</TeacherRole>
@@ -199,15 +535,49 @@ const MainClassroomPage = () => {
           </ImmersiveModeCTA>
         </CharacterSection>
         <ChatSection>
-          <iframe
-            src="http://localhost:8000"
-            style={{
-              width: '100%',
-              height: '100%',
-              border: 'none',
-            }}
-            title="Chainlit Chat"
-          />
+          <ChatMessages>
+            {messages.map(message => (
+              <TypewriterMessage 
+                key={message.id} 
+                message={message} 
+                isUser={message.isUser} 
+              />
+            ))}
+            {showSummary && <TypewriterEffect text={lessonSummary} />}
+            {error && (
+              <Message isUser={false}>
+                <div style={{ color: '#ff5e62' }}>{error}</div>
+              </Message>
+            )}
+            <div ref={messagesEndRef} />
+          </ChatMessages>
+          <ChatInput>
+            <Input
+              type="text"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Type your message..."
+              disabled={!socket || socket.readyState !== WebSocket.OPEN || lessonComplete}
+            />
+            <SendButton 
+              onClick={handleSendMessage}
+              disabled={!socket || socket.readyState !== WebSocket.OPEN || lessonComplete}
+            >
+              Send
+            </SendButton>
+            {lessonComplete && (
+              <SendButton 
+                onClick={handleStartNextLesson}
+                style={{ 
+                  background: 'linear-gradient(90deg, #FF9966 0%, #FF5E62 100%)',
+                  marginLeft: '0.5rem'
+                }}
+              >
+                Next Lesson
+              </SendButton>
+            )}
+          </ChatInput>
         </ChatSection>
       </ContentContainer>
     </PageContainer>
