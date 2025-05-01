@@ -49,11 +49,10 @@ def start_app() -> None:
     init()
     logger.info("Initial data created")
     uvicorn.run(
-        app="main:app",    # 等价于命令行中的 main:app
-        host="0.0.0.0",    # 开放外部访问
-        port=80,           # 监听80端口
-        # 可选附加参数
-        reload=False,      # 生产环境应关闭热重载
+        app="main:app",    
+        host="0.0.0.0",    
+        port=80,           
+        reload=False,      
     )
 
 if __name__ == "__main__":

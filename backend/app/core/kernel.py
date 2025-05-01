@@ -22,8 +22,8 @@ deepseek_chat_service = OpenAIChatCompletion(
     service_id="deepseek-chat",
     ai_model_id="deepseek-chat",    # or "deepseek-reasoner"
     async_client=AsyncOpenAI(
-        api_key="sk-XImXi6sCanG1yu9oznm9TwwPj0mAhxSb0jVYWN0aM9m2UnfJ",
-        base_url="https://fast.xeduapi.com",
+        api_key=settings.DEEPSEEK_API_KEY,
+        base_url=settings.DEEPSEEK_BASE_URL
     ),
 )
 

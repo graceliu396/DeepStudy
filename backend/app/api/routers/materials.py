@@ -15,7 +15,6 @@ router = APIRouter(tags=["parse"])
 
 @router.post("/material/upload", response_model=FileUpload)
 async def parse_file(file: UploadFile = File(...)):
-    # TODO 将上传的文件保存到数据库中
 
     file_content = await file.read()
     full_text = analyze_pdf(file_content)
@@ -47,7 +46,6 @@ async def parse_file(file: UploadFile = File(...)):
     lesson_plan_json = reasoned_result.model_dump()
     total_lessons=len(lesson_plan_json['lesson_sequence'])
 
-    # 将文件内容保存到数据库中
     file_record = FileUpload(
         id=str(uuid.uuid4()),
         user_id="3",
@@ -63,6 +61,3 @@ async def parse_file(file: UploadFile = File(...)):
     lesson_cache.migrate_file_data(file_record.id)
 
     return file_record.model_dump()
-
-# 查看用户上传的所有材料
-#TODO @router.post("/materials")

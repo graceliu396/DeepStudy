@@ -32,15 +32,13 @@ class Dalle3Plugin:
             "n": 1
         }
 
-        # 发送请求
         response = requests.post(url, headers=headers, json=payload)
-        response.raise_for_status()  # 如果响应状态码不是200，抛出异常
+        response.raise_for_status()
         
         result = response.json()
         return result['data'][0]['url']
         
 
-# 使用示例
 if __name__ == "__main__":
     plugin=Dalle3Plugin()
     result = plugin.generate_image_with_dalle3("A photograph of a red fox in an autumn forest")

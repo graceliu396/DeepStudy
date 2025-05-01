@@ -37,21 +37,17 @@ def create_user(*, session: Session, user_create: UserCreate) -> Users:
 
 
 def get_user_by_id(*, session: Session, user_id: uuid.UUID) -> Optional[Users]:
-    """根据用户ID获取用户"""
     return session.get(Users, user_id)
 
 def get_user_by_identifier(*, session: Session, identifier: str) -> Optional[Auth]:
-    """根据认证标识获取认证信息（修正后的版本）"""
     statement = select(Auth).where(Auth.identifier == identifier)
     return session.exec(statement).first()
 
 def get_users(*, session: Session, skip: int = 0, limit: int = 100) -> List[Users]:
-    """获取用户列表（分页）"""
     statement = select(Users).offset(skip).limit(limit)
     return session.exec(statement).all()
 
 def update_user(*, session: Session, db_user: Users, user_update: UserUpdate) -> Users:
-    """更新用户信息"""
     user_data = user_update.dict(exclude_unset=True)
     
     # 更新用户表
@@ -72,7 +68,6 @@ def update_user(*, session: Session, db_user: Users, user_update: UserUpdate) ->
     return db_user
 
 def delete_user(*, session: Session, user_id: uuid.UUID) -> None:
-    """删除用户及关联认证信息"""
     try:
         # 先删除认证信息
         auth = session.get(Auth, user_id)
@@ -90,7 +85,6 @@ def delete_user(*, session: Session, user_id: uuid.UUID) -> None:
         raise e
 
 def search_users(*, session: Session, keyword: str) -> List[Users]:
-    """搜索用户（昵称或标识符）"""
     statement = select(Users).join(Auth).where(
         or_(
             col(Users.nickname).ilike(f"%{keyword}%"),
@@ -100,15 +94,11 @@ def search_users(*, session: Session, keyword: str) -> List[Users]:
     return session.exec(statement).all()
 
 def authenticate(*, session: Session, identifier: str, password: str) -> Optional[Users]:
-    """用户认证（修正版）"""
-    # 获取认证信息
     auth_info = get_user_by_identifier(session=session, identifier=identifier)
     if not auth_info:
         return None
     
-    # 验证密码
     if not verify_password(password, auth_info.credential):
         return None
     
-    # 获取用户信息
     return get_user_by_id(session=session, user_id=auth_info.user_id)

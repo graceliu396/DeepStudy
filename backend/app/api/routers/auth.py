@@ -23,22 +23,19 @@ router = APIRouter(tags=["login"])
 def register(
     session: SessionDep,
     user_create: UserCreate):
-    # 检查用户是否存在
     existing_user = get_user_by_identifier(session=session, email=user_create.identifier)
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
     try:
-        # 创建用户和认证记录（原子操作）
         db_user = Users(
             nickname=user_create.nickname,
             grade=user_create.grade,
             is_admin=False
         )
         session.add(db_user)
-        session.flush()  # 生成用户ID但不提交
+        session.flush() 
 
-        # 创建认证信息
         hashed_passwd = get_password_hash(user_create.credential)
         db_auth = Auth(
             identifier=user_create.identifier,
@@ -48,9 +45,8 @@ def register(
             verified=False
         )
         session.add(db_auth)
-        session.commit()  # 统一提交用户和认证记录
+        session.commit()  
         
-        # 发送激活邮件
         token = generate_email_activation_token(email=user_create.identifier)
         email_data = generate_email_activation_email(
             email_to=user_create.identifier,
@@ -64,12 +60,9 @@ def register(
         )
     
     except Exception as e:
-        # 错误恢复逻辑
-        session.rollback()  # 回滚未提交的操作
-        
-        # 如果用户已创建但未提交
+        session.rollback()  
+
         if 'db_user' in locals():
-            # 删除可能已提交的记录
             session.exec(Users).filter(Users.id == db_user.id).delete()
             session.exec(Auth).filter(Auth.user_id == db_user.id).delete()
             session.commit()
@@ -194,9 +187,6 @@ def recover_password_html_content(email: str, session: SessionDep) -> Any:
     )
 
 
-
-#TODO @router.post("/login/google", response_model=Token)
-#TODO @router.post("/login/microsoft", response_model=Token)
 
 
 

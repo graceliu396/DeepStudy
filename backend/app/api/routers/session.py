@@ -14,9 +14,9 @@ from app.tools.azure_redis_for_cache import lesson_cache
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from app.agent.stage0_preparing import generate_teaching_script
-# from app.agent.stage0_preparing_withRAG import generate_teaching_script_RAG
+from app.agent.stage0_preparing_withRAG import generate_teaching_script_RAG
 from app.agent.stage1_teaching_websocket import ws_class_begin
-# from app.agent.stage2_discussion import generate_discussion_history
+from app.agent.stage2_discussion import get_response_from_one_agent
 from app.schemas.chatHistory import Step
 from app.agent.stage3_summary import retrieve_questions, generate_report
 router = APIRouter(tags=["study"])
@@ -26,7 +26,7 @@ async def start_session(file_id: str):
     file_record=lesson_cache.get_file_record_cache(file_id)
     session_id=lesson_cache.create_session(file_record['user_id'], file_id, file_record['total_lessons'])
     mini_lesson_plan=(eval(file_record['lesson_plan']))['lesson_sequence'][0]
-    teaching_script= await generate_teaching_script(str(mini_lesson_plan))
+    teaching_script= await generate_teaching_script_RAG(str(mini_lesson_plan))
     print(teaching_script)
     lesson_cache.update_teaching_script(session_id, teaching_script)
 

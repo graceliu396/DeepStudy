@@ -47,10 +47,6 @@ except Exception as e:
     raise e
 
 
-# TODO 在CCSS中，根据用户上传的文件内容，进行向量搜索，返回相似的文件
-# def vector_search(vectors, adminId, subject, grade, topic):
-
-
 def update_file_container(data):
     try:
         file_container.upsert_item(data)

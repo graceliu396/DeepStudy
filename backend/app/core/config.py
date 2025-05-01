@@ -85,6 +85,9 @@ class Settings(BaseSettings):
     AZURE_STORAGE_CONNECTION: str
     SERPAPI_KEY:str
 
+    DEEPSEEK_API_KEY:str
+    DEEPSEEK_BASE_URL:str
+
 
     POSTGRES_SERVER: str
     POSTGRES_PORT: int 
@@ -106,12 +109,12 @@ class Settings(BaseSettings):
 
     SMTP_TLS: bool = True
     SMTP_SSL: bool = False
-    SMTP_PORT: int = 
-    SMTP_HOST: str = 
-    SMTP_USER: str =
-    SMTP_PASSWORD: str =
-    EMAILS_FROM_EMAIL: EmailStr =
-    EMAILS_FROM_NAME: str =
+    SMTP_PORT: int 
+    SMTP_HOST: str  
+    SMTP_USER: str 
+    SMTP_PASSWORD: str 
+    EMAILS_FROM_EMAIL: EmailStr 
+    EMAILS_FROM_NAME: str 
     @model_validator(mode="after")
     def _set_default_emails_from(self) -> Self:
         if not self.EMAILS_FROM_NAME:
@@ -125,9 +128,9 @@ class Settings(BaseSettings):
     def emails_enabled(self) -> bool:
         return bool(self.SMTP_HOST and self.EMAILS_FROM_EMAIL)
 
-    EMAIL_TEST_USER: EmailStr = 
-    FIRST_SUPERUSER: EmailStr = 
-    FIRST_SUPERUSER_PASSWORD: str = 
+    EMAIL_TEST_USER: EmailStr 
+    FIRST_SUPERUSER: EmailStr  
+    FIRST_SUPERUSER_PASSWORD: str 
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":

@@ -114,9 +114,10 @@ npm run dev
 
 ### Backend:
 
-Make sure you have added your configuration in backend/app/core/[config.py](http://config.py/)
+Make sure you have added your configuration in backend/app/core/config.py
 
 ```bash
+cd ./backend/app
 pip install -r requirements.txt
 python main.py
 ```
